@@ -11,11 +11,11 @@
         <repository>
             <id>github</id>
             <name>GitHub GulamSamdani Apache Maven Packages</name>
-               <url>https://maven.pkg.github.com/masumcse1/prelecheck</url>
+               <url>https://maven.pkg.github.com/masumcse1/abc</url>
         </repository>
     </distributionManagement>
     
-    
+
     <developers>
         <developer>
             <name>Gulam Samdani</name>
@@ -27,7 +27,7 @@
 
     <scm>
         <connection>scm:git:git://github.com/masumcse1/prelecheck.git</connection>
-        <developerConnection>scm:git:https://github.com/masumcse1/prelecheck.git</developerConnection>
+        <developerConnection>scm:git:https://github.com/masumcse1/abc.git</developerConnection>
         <url>https://github.com/masumcse1/prelecheck</url>
         <tag>prelecheck-0.0.1</tag>
     </scm>
