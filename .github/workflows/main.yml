@@ -1,4 +1,4 @@
-name: Perform Release
+name: bangladesh
 on:
   workflow_dispatch:
     inputs:
