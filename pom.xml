@@ -4,7 +4,7 @@
 
     <groupId>org.example</groupId>
     <artifactId>abc</artifactId>
-    <version>0.0.18</version>
+    <version>0.0.19-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <distributionManagement>
@@ -29,7 +29,7 @@
         <connection>scm:git:git://github.com/masumcse1/prelecheck.git</connection>
         <developerConnection>scm:git:https://github.com/masumcse1/abc.git</developerConnection>
         <url>https://github.com/masumcse1/prelecheck</url>
-        <tag>abc-0.0.18</tag>
+        <tag>prelecheck-0.0.1</tag>
     </scm>
 
     <build>
