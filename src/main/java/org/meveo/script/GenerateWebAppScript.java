@@ -267,30 +267,7 @@ public class GenerateWebAppScript extends Script {
         LOG.debug("END - GenerateWebAppScript.execute()");
     }
 
-
-    private Set<String> iterateRefSchemas(String entityCode, Set<String> allSchemas) {
-        if (allSchemas.contains(entityCode)) {
-            return allSchemas;
-        }
-        Set<String> refSchemaCodes = allSchemas;
-        refSchemaCodes.add(entityCode);
-        CustomEntityTemplate entityTemplate = cetService.findByCodeOrDbTablename(entityCode);
-        Map<String, CustomFieldTemplate> fields = cftService.findByAppliesTo(entityTemplate.getAppliesTo());
-        for (Entry<String, CustomFieldTemplate> entry : fields.entrySet()) {
-            String key = entry.getKey();
-            CustomFieldTemplate field = entry.getValue();
-            String fieldEntityCode = field.getEntityClazzCetCode();
-            boolean isEntity = fieldEntityCode != null;
-            boolean isAdded = refSchemaCodes.contains(key);
-            boolean isCet = isEntity && !fieldEntityCode.contains(".");
-            if (!isAdded && isCet) {
-                LOG.debug("Adding to all schemas: {}", refSchemaCodes);
-                refSchemaCodes.addAll(iterateRefSchemas(fieldEntityCode, refSchemaCodes));
-            }
-        }
-        LOG.debug("Added Schemas: {}", refSchemaCodes);
-        return refSchemaCodes;
-    }
+ 
 
     private List<File> generateModels(FileTransformer transformer) throws BusinessException {
         List<File> files = new ArrayList<>();
@@ -332,7 +309,7 @@ public class GenerateWebAppScript extends Script {
                 }
                 fieldContents.append(formFields);
                 
-                LOG.debug("FF>>>", formFields.toString());
+             
                 modelContent.append(fieldContents);
                 EntityActions entityActions = new EntityActions();
                 for (Entry<String, EntityCustomAction> entry : actions.entrySet()) {
@@ -388,6 +365,30 @@ public class GenerateWebAppScript extends Script {
             }
         }
         return files;
+    }
+    
+    private Set<String> iterateRefSchemas(String entityCode, Set<String> allSchemas) {
+        if (allSchemas.contains(entityCode)) {
+            return allSchemas;
+        }
+        Set<String> refSchemaCodes = allSchemas;
+        refSchemaCodes.add(entityCode);
+        CustomEntityTemplate entityTemplate = cetService.findByCodeOrDbTablename(entityCode);
+        Map<String, CustomFieldTemplate> fields = cftService.findByAppliesTo(entityTemplate.getAppliesTo());
+        for (Entry<String, CustomFieldTemplate> entry : fields.entrySet()) {
+            String key = entry.getKey();
+            CustomFieldTemplate field = entry.getValue();
+            String fieldEntityCode = field.getEntityClazzCetCode();
+            boolean isEntity = fieldEntityCode != null;
+            boolean isAdded = refSchemaCodes.contains(key);
+            boolean isCet = isEntity && !fieldEntityCode.contains(".");
+            if (!isAdded && isCet) {
+                LOG.debug("Adding to all schemas: {}", refSchemaCodes);
+                refSchemaCodes.addAll(iterateRefSchemas(fieldEntityCode, refSchemaCodes));
+            }
+        }
+        LOG.debug("Added Schemas: {}", refSchemaCodes);
+        return refSchemaCodes;
     }
 }
 
