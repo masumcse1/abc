@@ -249,7 +249,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			
             
             File gitDirectory = GitHelper.getRepositoryDir(user, module.getGitRepository().getCode());
-            String pathJavaFile = "facets/java/org/meveo/model/customEndPoint/" +httpMethod+ entityCodes.get(0)+"Create" + ".java";
+            String pathJavaFile = "facets/java/org/meveo/model/customEndPoint/" + getRestClassName(entityClass, httpMethod) + ".java";
             
             try {
 				
