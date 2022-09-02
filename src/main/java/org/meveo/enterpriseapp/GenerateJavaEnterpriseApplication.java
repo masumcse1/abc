@@ -2,7 +2,10 @@ package org.meveo.enterpriseapp;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,8 +14,10 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 import javax.servlet.ServletException;
 
+import org.apache.commons.io.FileUtils;
 import org.meveo.admin.exception.BusinessException;
 import org.meveo.api.persistence.CrossStorageApi;
+import org.meveo.commons.utils.MeveoFileUtils;
 import org.meveo.commons.utils.ParamBean;
 import org.meveo.commons.utils.ParamBeanFactory;
 import org.meveo.model.customEntities.CustomEntityTemplate;
@@ -237,7 +242,28 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	        injectedFieldName = getNonCapitalizeName(serviceCode);
 	        
 	        log.debug("entityCodes: {}", entityCodes);
-             generateEndPoint(endpoint,entityCodes);
+              
+            ///////////////////////////////////////////
+            
+            List<File> filesToCommit = new ArrayList<>();
+            File gitDirectory = GitHelper.getRepositoryDir(user, module.getGitRepository().getCode());
+            String pathJavaFile = "facets/java/org/meveo/model/customEndPoint/" + entityCodes.get(0)+"Create" + ".java";
+            
+            try {
+				
+				File outputFile = new File (gitDirectory, pathJavaFile);
+				String fullContent = generateEndPoint(endpoint,entityCodes);
+				FileUtils.write(outputFile, fullContent, StandardCharsets.UTF_8);
+				filesToCommit.add(outputFile);
+			} catch (IOException e) {
+				throw new BusinessException("Failed creating file." + e.getMessage());
+			}
+            
+            
+            if (!filesToCommit.isEmpty()) {
+				gitClient.commitFiles(moduleWebAppRepo, filesToCommit, "Initialize local commits test");
+
+			}
              
              
 		}
@@ -290,7 +316,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	}
  
-	void generateEndPoint( Endpoint endpoint,List<String> entityCodes) {
+	String generateEndPoint( Endpoint endpoint,List<String> entityCodes) {
 		
 	    CompilationUnit cu = new CompilationUnit();
 		cu.setPackageDeclaration("org.meveo.mymodule.resource");
@@ -332,7 +358,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		restMethod.setBody(beforeTryblock);    
 
 		restMethod.getBody().get().getStatements().add(getReturnType());
-		System.out.println(cu);
+		//System.out.println(cu);
+		return cu.toString();
 	}
 	
 	
