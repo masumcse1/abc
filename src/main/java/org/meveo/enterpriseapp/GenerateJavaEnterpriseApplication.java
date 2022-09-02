@@ -228,26 +228,28 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	    	
 			List<String> endpointlist = moduleItems.stream().filter(item -> CUSTOM_ENDPOINT_TEMPLATE.equals(item.getItemClass()))
 					.map(entity -> entity.getItemCode()).collect(Collectors.toList());
-			
 					
-			List<Endpoint> ss= endpointService.findByServiceCode(endpointlist.get(0));
-	        Endpoint endpoint = endpointService.findByCode(endpointlist.get(0));
-	        
-	        entityClass   = entityCodes.get(0);
-	        dtoClass      = entityCodes.get(0) + "Dto";
-	        serviceCode   = getServiceCode(endpoint.getService().getCode()) ;
-	        httpMethod    = endpoint.getMethod().getLabel();
-	        pathParameter = endpoint.getPath();
-	        httpBasePath  = endpoint.getBasePath();
-	        injectedFieldName = getNonCapitalizeName(serviceCode);
-	        
-	        log.debug("entityCodes: {}", entityCodes);
-              
-            ///////////////////////////////////////////
+			List<Endpoint> enpointlists= endpointService.findByServiceCode(endpointlist.get(0));
+	        //Endpoint endpoint = endpointService.findByCode(endpointlist.get(0));
+			
+			
+			    entityClass   = entityCodes.get(0);
+		        dtoClass      = entityCodes.get(0) + "Dto";
+		        log.debug("entityCodes: {}", entityCodes);
+		        List<File> filesToCommit = new ArrayList<>();
+		     
+	        for (String endpointstr :endpointlist) {
+	        	Endpoint endpoint = endpointService.findByCode(endpointstr);
+	        	
+	        	serviceCode   = getServiceCode(endpoint.getService().getCode()) ;
+		        httpMethod    = endpoint.getMethod().getLabel();
+		        pathParameter = endpoint.getPath();
+		        httpBasePath  = endpoint.getBasePath();
+		        injectedFieldName = getNonCapitalizeName(serviceCode);
+			
             
-            List<File> filesToCommit = new ArrayList<>();
             File gitDirectory = GitHelper.getRepositoryDir(user, module.getGitRepository().getCode());
-            String pathJavaFile = "facets/java/org/meveo/model/customEndPoint/" + entityCodes.get(0)+"Create" + ".java";
+            String pathJavaFile = "facets/java/org/meveo/model/customEndPoint/" +httpMethod+ entityCodes.get(0)+"Create" + ".java";
             
             try {
 				
@@ -259,12 +261,12 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				throw new BusinessException("Failed creating file." + e.getMessage());
 			}
             
-            
             if (!filesToCommit.isEmpty()) {
 				gitClient.commitFiles(moduleWebAppRepo, filesToCommit, "Initialize local commits test");
-
 			}
-             
+            
+	        }
+	        
              
 		}
 		log.debug("END - GenerateJavaEnterpriseApplication.execute()--------------");
@@ -417,14 +419,29 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		String className = null;
 		if (httpMethod.equals("POST")) {
 			className = entityClass + "Create";
+		}else if(httpMethod.equals("GET")) {
+			className = entityClass + "Get";
+		}else if(httpMethod.equals("PUT")) {
+			className = entityClass + "Update";
+		}else if(httpMethod.equals("DELETE")) {
+			className = entityClass + "Delete";
 		}
+		
+		
 		return className;
 	}
 
 	private  String getRestMethodName(String entityClass, String httpMethod) {
 		String methodName = null;
+		
 		if (httpMethod.equals("POST")) {
 			methodName = "save" + entityClass;
+		}else if(httpMethod.equals("GET")) {
+			methodName = "get" + entityClass;
+		}else if(httpMethod.equals("PUT")) {
+			methodName = "update" + entityClass;
+		}else if(httpMethod.equals("DELETE")) {
+			methodName = "remove" + entityClass;
 		}
 		return methodName;
 	}
@@ -438,7 +455,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		BlockStmt cb = new BlockStmt();
 		cb.addStatement(new ExpressionStmt(
 				new NameExpr("return Response.status(Response.Status.BAD_REQUEST).entity(result).build()")));
-		// cb.addStatement(new ThrowStmt(new NameExpr(exceptionName)));
+		// cb.addStatement(new ThrowStmt(new NameExpr(ex8uj  ceptionName)));
 		cc.setBody(cb);
 		ts.setCatchClauses(new NodeList<>(cc));
 	
@@ -458,6 +475,5 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		return objectReferenceName;
 
 	}
-
 
 }
