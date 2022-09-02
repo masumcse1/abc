@@ -1,11 +1,15 @@
 package org.meveo.enterpriseapp;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import javax.inject.Inject;
+import javax.servlet.ServletException;
 
 import org.meveo.admin.exception.BusinessException;
 import org.meveo.api.persistence.CrossStorageApi;
@@ -17,11 +21,14 @@ import org.meveo.model.git.GitRepository;
 import org.meveo.model.module.MeveoModule;
 import org.meveo.model.module.MeveoModuleItem;
 import org.meveo.model.storage.Repository;
+import org.meveo.model.technicalservice.endpoint.Endpoint;
 import org.meveo.persistence.CrossStorageService;
 import org.meveo.security.MeveoUser;
 import org.meveo.service.admin.impl.MeveoModuleService;
 import org.meveo.service.crm.impl.CustomFieldInstanceService;
 import org.meveo.service.crm.impl.CustomFieldTemplateService;
+import org.meveo.service.crm.impl.JSONSchemaGenerator;
+import org.meveo.service.crm.impl.JSONSchemaIntoJavaClassParser;
 import org.meveo.service.custom.CustomEntityTemplateService;
 import org.meveo.service.custom.EntityCustomActionService;
 import org.meveo.service.git.GitClient;
@@ -29,10 +36,44 @@ import org.meveo.service.git.GitHelper;
 import org.meveo.service.git.GitRepositoryService;
 import org.meveo.service.script.Script;
 import org.meveo.service.storage.RepositoryService;
+import org.meveo.service.technicalservice.endpoint.EndpointService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Modifier;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.FieldDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.NullLiteralExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.VariableDeclarationExpr;
+import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.TryStmt;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
+
 public class GenerateJavaEnterpriseApplication extends Script {
+
+	@Inject
+	private JSONSchemaIntoJavaClassParser jSONSchemaIntoJavaClassParser;
+
+	@Inject
+	private JSONSchemaGenerator jSONSchemaGenerator;
+
+	private Map<String, Object> jsonMap;
+
+	///////////////////////////////////////////
 
 	private static final Logger log = LoggerFactory.getLogger(GenerateJavaEnterpriseApplication.class);
 
@@ -45,6 +86,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private static final String LOG_SEPARATOR = "***********************************************************";
 
 	private static final String CUSTOM_TEMPLATE = CustomEntityTemplate.class.getName();
+	
+	private static final String CUSTOM_ENDPOINT_TEMPLATE = Endpoint.class.getName();
 
 	private static final String WEB_APP_TEMPLATE = JavaEnterpriseApp.class.getSimpleName();
 
@@ -65,7 +108,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private static final String MODULE_CODE = "MODULE_CODE";
 
 	private static final String AFFIX = "-UI";
-	
+
 	private String SLASH = File.separator;
 
 	private String baseUrl = null;
@@ -91,10 +134,21 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private ParamBeanFactory paramBeanFactory = getCDIBean(ParamBeanFactory.class);
 
 	private CrossStorageApi crossStorageApi = getCDIBean(CrossStorageApi.class);
+	
+	@Inject
+    private EndpointService endpointService;
 
 	private Repository repository;
 
 	private String moduleCode;
+	
+	private String entityClass ;//= "Product";
+	private String dtoClass ;//= "ProductDto";
+	private String serviceCode ;//= "CreateMyProduct";
+	private String injectedFieldName;// ="CreateMyProduct";
+	private String httpMethod;// ="CreateMyProduct";
+	private String pathParameter;
+	private String httpBasePath;
 
 	public String getModuleCode() {
 		return this.moduleCode;
@@ -110,6 +164,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		}
 		return repository;
 	}
+	
+	
 
 	@Override
 	public void execute(Map<String, Object> parameters) throws BusinessException {
@@ -150,56 +206,231 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			JavaEnterpriseApp webapp = crossStorageApi.find(getDefaultRepository(), JavaEnterpriseApp.class)
 					.by("code", module.getCode()).getResult();
 
-			// SAVE COPY OF MV-TEMPLATE TO MEVEO GIT REPOSITORY
-			GitRepository webappTemplateRepo = gitRepositoryService.findByCode(WEB_APP_TEMPLATE);
-			if (webappTemplateRepo == null) {
-				log.debug("CREATE NEW GitRepository: {}", WEB_APP_TEMPLATE);
-				webappTemplateRepo = new GitRepository();
-				webappTemplateRepo.setCode(WEB_APP_TEMPLATE);
-				webappTemplateRepo.setDescription(WEB_APP_TEMPLATE + " Template repository");
-				webappTemplateRepo.setRemoteOrigin(MV_TEMPLATE_REPO);
-				webappTemplateRepo.setDefaultRemoteUsername("");
-				webappTemplateRepo.setDefaultRemotePassword("");
-				gitRepositoryService.create(webappTemplateRepo);
-			} else {
-				gitClient.pull(webappTemplateRepo, "", "");
-			}
-			File webappTemplateDirectory = GitHelper.getRepositoryDir(user, WEB_APP_TEMPLATE);
-			Path webappTemplatePath = webappTemplateDirectory.toPath();
-			log.debug("webappTemplate path: {}", webappTemplatePath.toString());
-
 			GitRepository moduleWebAppRepo = gitRepositoryService.findByCode(moduleCode);
 
-			if (moduleWebAppRepo == null) {
-				moduleWebAppRepo = new GitRepository();
-				moduleWebAppRepo.setCode(moduleCode + AFFIX);
-				// moduleWebAppRepo.setDescription(WebAppScriptHelper.toTitleName(moduleCode) +
-				// " Template repository");
-				moduleWebAppRepo.setRemoteOrigin(remoteUrl);
-				moduleWebAppRepo.setDefaultRemoteUsername(remoteUsername);
-				moduleWebAppRepo.setDefaultRemotePassword(remotePassword);
-				gitRepositoryService.create(moduleWebAppRepo);
-			}
 			gitClient.checkout(moduleWebAppRepo, MEVEO_BRANCH, true);
 			String moduleWebAppBranch = gitClient.currentBranch(moduleWebAppRepo);
 			File moduleWebAppDirectory = GitHelper.getRepositoryDir(user, moduleCode);
 			Path moduleWebAppPath = moduleWebAppDirectory.toPath();
-			log.debug("===============working.==============================================");
+			log.debug("===============working. for DTO Generation==============================================");
+
+			CompilationUnit compilationUnit = new CompilationUnit();
+
+			compilationUnit.addImport("org.meveo.model.customEntities." + entityCodes.get(0));
+			// jsonMap.put("type", "String");
+			//generateDto(jsonMap, compilationUnit, entityCodes);
+			log.debug("===============working. for End point Generation==============================================");
+	    	
+			List<String> endpointlist = moduleItems.stream().filter(item -> CUSTOM_ENDPOINT_TEMPLATE.equals(item.getItemClass()))
+					.map(entity -> entity.getItemCode()).collect(Collectors.toList());
 			
-			System.out.println("moduleWebAppPath"+moduleWebAppPath);
-			
-			
-			
+					
+			List<Endpoint> ss= endpointService.findByServiceCode(endpointlist.get(0));
+	        Endpoint endpoint = endpointService.findByCode(endpointlist.get(0));
+	        
+	        entityClass   = entityCodes.get(0);
+	        dtoClass      = entityCodes.get(0) + "Dto";
+	        serviceCode   = getServiceCode(endpoint.getService().getCode()) ;
+	        httpMethod    = endpoint.getMethod().getLabel();
+	        pathParameter = endpoint.getPath();
+	        httpBasePath  = endpoint.getBasePath();
+	        injectedFieldName = getNonCapitalizeName(serviceCode);
+	        
+	        log.debug("entityCodes: {}", entityCodes);
+             generateEndPoint(endpoint,entityCodes);
+             
+             
 		}
 		log.debug("END - GenerateJavaEnterpriseApplication.execute()--------------");
 	}
 
-	void generateDto() {
+	void generateDto(Map<String, Object> jsonMap, CompilationUnit compilationUnit, List<String> entityCodes) {
+
+		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(entityCodes.get(0) + "Dto")
+				.setPublic(true);
+
+		FieldDeclaration field1 = new FieldDeclaration();
+		VariableDeclarator variable1 = new VariableDeclarator();
+		variable1.setName("type");
+		variable1.setType("String");
+
+		field1.setModifiers(Modifier.Keyword.PRIVATE);
+		field1.addVariable(variable1);
+		classDeclaration.addMember(field1);
+
+		FieldDeclaration field2 = new FieldDeclaration();
+		VariableDeclarator variable2 = new VariableDeclarator();
+		variable2.setName(entityCodes.get(0).toLowerCase());
+		variable2.setType(entityCodes.get(0));
+
+		field2.setModifiers(Modifier.Keyword.PRIVATE);
+		field2.addVariable(variable2);
+		classDeclaration.addMember(field2);
+
+		field1.createGetter();
+		field1.createSetter();
+		field2.createGetter();
+		field2.createSetter();
+
+		classDeclaration.addConstructor(Modifier.Keyword.PUBLIC);
+		classDeclaration.addConstructor();
+
+		VariableDeclarator variableDeclarator1 = new VariableDeclarator();
+		variableDeclarator1.setType(entityCodes.get(0));
+
+		VariableDeclarator variableDeclarator2 = new VariableDeclarator();
+		variableDeclarator2.setType("String");
+
+		classDeclaration.addConstructor(Modifier.Keyword.PUBLIC)
+				.addParameter(new Parameter(variableDeclarator1.getType(), "product"))
+				.addParameter(new Parameter(variableDeclarator2.getType(), "type"))
+				.setBody(JavaParser.parseBlock("{\n this.product = product; \n  this.type = type; \n}"));
+
+		System.out.println("clas:" + compilationUnit);
+
+	}
+ 
+	void generateEndPoint( Endpoint endpoint,List<String> entityCodes) {
+		
+	    CompilationUnit cu = new CompilationUnit();
+		cu.setPackageDeclaration("org.meveo.mymodule.resource");
+		cu.addImport("java.util", false, true);
+
+		ClassOrInterfaceDeclaration clazz=generateRestClass(cu);
+
+		MethodDeclaration restMethod = generateRestMethod(clazz);
+
+		BlockStmt beforeTryblock = new BlockStmt();
+
+		VariableDeclarator var_result = new VariableDeclarator();
+		var_result.setName("result");
+		var_result.setType("String");
+		var_result.setInitializer(new NullLiteralExpr());
+
+		NodeList<VariableDeclarator> var_result_declarator = new NodeList<>();
+		var_result_declarator.add(var_result);
+		beforeTryblock.addStatement(new ExpressionStmt().setExpression(new VariableDeclarationExpr().setVariables(var_result_declarator)));
+
+		beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("parameterMap = new HashMap<String, Object>()")));
+
+		MethodCallExpr getEntity_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
+		getEntity_methodCall.addArgument(new StringLiteralExpr(getNonCapitalizeName(entityClass)));
+		getEntity_methodCall.addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(dtoClass)), "get" + entityClass));
+
+		beforeTryblock.addStatement(getEntity_methodCall);
+
+		MethodCallExpr getType_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
+		getType_methodCall.addArgument(new StringLiteralExpr("type"));
+		getType_methodCall.addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(dtoClass)), "getType"));
+
+		beforeTryblock.addStatement(getType_methodCall);
+
+		beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("setRequestResponse()")));
+		Statement trystatement = generateTryBlock(var_result);
+
+		beforeTryblock.addStatement(trystatement);
+		restMethod.setBody(beforeTryblock);    
+
+		restMethod.getBody().get().getStatements().add(getReturnType());
+		System.out.println(cu);
+	}
+	
+	
+	  private ClassOrInterfaceDeclaration generateRestClass(CompilationUnit cu) {
+		    ClassOrInterfaceDeclaration clazz = cu.addClass(getRestClassName(entityClass, httpMethod),	Modifier.Keyword.PUBLIC);
+			clazz.addSingleMemberAnnotation("Path", new StringLiteralExpr(httpBasePath));
+			clazz.addMarkerAnnotation("RequestScoped");
+			
+			var injectedfield = clazz.addField(serviceCode, injectedFieldName, Modifier.Keyword.PRIVATE);
+			injectedfield.addMarkerAnnotation("Inject");
+
+			NodeList<ClassOrInterfaceType> extendsList = new NodeList<>();
+			extendsList.add(new ClassOrInterfaceType("CustomEndpointResource"));
+			clazz.setExtendedTypes(extendsList);
+			return clazz;
+	  }
+	 
+	private MethodDeclaration generateRestMethod(ClassOrInterfaceDeclaration clazz) {
+		MethodDeclaration restMethod = clazz.addMethod(getRestMethodName(entityClass, httpMethod),	Modifier.Keyword.PUBLIC);
+		restMethod.addParameter(dtoClass, getNonCapitalizeName(dtoClass));
+		restMethod.setType("Response");
+		restMethod.addMarkerAnnotation(httpMethod);
+		restMethod.addSingleMemberAnnotation("Produces", "MediaType.APPLICATION_JSON");
+		restMethod.addSingleMemberAnnotation("Consumes", "MediaType.APPLICATION_JSON");
+		restMethod.addThrownException(IOException.class);
+		restMethod.addThrownException(ServletException.class);
+      return restMethod;
+
+	}
+	
+	private Statement generateTryBlock(VariableDeclarator assignmentVariable) {
+		BlockStmt tryblock = new BlockStmt();
+		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "set" + entityClass).addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(dtoClass)), "get" + entityClass)));
+		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "init").addArgument("parameterMap"));
+		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "execute").addArgument("parameterMap"));
+		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "finalize").addArgument("parameterMap"));
+		tryblock.addStatement(assignment(assignmentVariable.getNameAsString(), injectedFieldName, "getResult"));
+		Statement trystatement = addingException(tryblock);
+		
+		return trystatement;
+	}
+
+	private ReturnStmt getReturnType() {
+		
+		return new ReturnStmt(new NameExpr("Response.status(Response.Status.OK).entity(result).build()"));
+	}
+	
+	
+	private  String getServiceCode(String serviceCode) {
+		return serviceCode.substring(serviceCode.lastIndexOf(".") + 1);
+		
+	}
+	
+	private  String getRestClassName(String entityClass, String httpMethod) {
+		String className = null;
+		if (httpMethod.equals("POST")) {
+			className = entityClass + "Create";
+		}
+		return className;
+	}
+
+	private  String getRestMethodName(String entityClass, String httpMethod) {
+		String methodName = null;
+		if (httpMethod.equals("POST")) {
+			methodName = "save" + entityClass;
+		}
+		return methodName;
+	}
+
+	private  Statement addingException(BlockStmt body) {
+		TryStmt ts = new TryStmt();
+		ts.setTryBlock(body);
+		CatchClause cc = new CatchClause();
+		String exceptionName = "e";
+		cc.setParameter(new Parameter().setName(exceptionName).setType(Exception.class));
+		BlockStmt cb = new BlockStmt();
+		cb.addStatement(new ExpressionStmt(
+				new NameExpr("return Response.status(Response.Status.BAD_REQUEST).entity(result).build()")));
+		// cb.addStatement(new ThrowStmt(new NameExpr(exceptionName)));
+		cc.setBody(cb);
+		ts.setCatchClauses(new NodeList<>(cc));
+	
+		return ts;
+	}
+
+	private  Statement assignment(String assignOject, String callOBject, String methodName) {
+		MethodCallExpr methodCallExpr = new MethodCallExpr(new NameExpr(callOBject), methodName);
+		AssignExpr assignExpr = new AssignExpr(new NameExpr(assignOject), methodCallExpr, AssignExpr.Operator.ASSIGN);
+		return new ExpressionStmt(assignExpr);
+	}
+
+	private  String getNonCapitalizeName(String className) {
+		if (className == null || className.length() == 0)
+			return className;
+		String objectReferenceName = className.substring(0, 1).toLowerCase() + className.substring(1);
+		return objectReferenceName;
 
 	}
 
-	void generateEndPoint() {
-
-	}
 
 }
