@@ -224,7 +224,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			log.debug("===============working. for DTO Generation==============================================");
 			 List<File> filesToCommit = new ArrayList<>();
 			
-	
+			 entityClass   = entityCodes.get(0);
+		        dtoClass      = entityCodes.get(0) + "Dto";
 			    String pathJavaDtoFile = "facets/java/org/meveo/model/DTO/" + entityCodes.get(0)+"Dto"+ ".java";
 	            
 	            try {
@@ -245,8 +246,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 					
 			List<Endpoint> enpointlists= endpointService.findByServiceCode(endpointlist.get(0));
 	     
-			    entityClass   = entityCodes.get(0);
-		        dtoClass      = entityCodes.get(0) + "Dto";
+			   
 		        log.debug("entityCodes: {}", entityCodes);
 		       
 		     
@@ -260,12 +260,11 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		        injectedFieldName = getNonCapitalizeName(serviceCode);
 			
             
-            File gitDirectory = GitHelper.getRepositoryDir(user, module.getGitRepository().getCode());
             String pathJavaFile = "facets/java/org/meveo/model/customEndPoint/" + getRestClassName(entityClass, httpMethod) + ".java";
             
             try {
 				
-				File outputFile = new File (gitDirectory, pathJavaFile);
+				File outputFile = new File (moduleWebAppDirectory, pathJavaFile);
 				String fullContent = generateEndPoint(endpoint,entityCodes);
 				FileUtils.write(outputFile, fullContent, StandardCharsets.UTF_8);
 				filesToCommit.add(outputFile);
@@ -288,7 +287,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		CompilationUnit compilationUnit = new CompilationUnit();
 		//
 		compilationUnit.setPackageDeclaration("org.meveo.mymodule.dto");
-		compilationUnit.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto."+dtoClass), false, false));
+		compilationUnit.getImports().add(new ImportDeclaration(new Name("org.meveo.model.customEntities."+entityClass), false, false));
 		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(entityCodes.get(0) + "Dto")
 				.setPublic(true);
 
