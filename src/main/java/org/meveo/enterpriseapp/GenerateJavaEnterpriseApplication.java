@@ -397,20 +397,19 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		 restMethod.addSingleMemberAnnotation("Path", new StringLiteralExpr("/{uuid}"));
 		}
 		
-		Parameter restMethodParameter = new Parameter();
-		
 		if(httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
-			     restMethodParameter.setType(dtoClass);
-				 restMethodParameter.setName(getNonCapitalizeName(dtoClass));
+			restMethod.addParameter(dtoClass, getNonCapitalizeName(dtoClass));
 		}
 				
 		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE") || httpMethod.equalsIgnoreCase("PUT")) {
+			 Parameter restMethodParameter = new Parameter();
 		     restMethodParameter.setType("String");
 			 restMethodParameter.setName(getNonCapitalizeName("uuid"));
 			 restMethodParameter.addSingleMemberAnnotation("PathParam", new StringLiteralExpr("uuid"));
+			 restMethod.addParameter(restMethodParameter);
 	}		
 		
-		restMethod.addParameter(restMethodParameter);
+		
 		
 		restMethod.addSingleMemberAnnotation("Produces", "MediaType.APPLICATION_JSON");
 		restMethod.addSingleMemberAnnotation("Consumes", "MediaType.APPLICATION_JSON");
