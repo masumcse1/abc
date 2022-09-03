@@ -224,12 +224,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			log.debug("===============working. for DTO Generation==============================================");
 			 List<File> filesToCommit = new ArrayList<>();
 			
-
-			//compilationUnit.addImport("org.meveo.model.customEntities." + entityCodes.get(0));
-			// jsonMap.put("type", "String");
-			
-			
-			    String pathJavaDtoFile = "facets/java/org/meveo/model/DTO/" + entityCodes.get(0)+"DTO"+ ".java";
+	
+			    String pathJavaDtoFile = "facets/java/org/meveo/model/DTO/" + entityCodes.get(0)+"Dto"+ ".java";
 	            
 	            try {
 					
@@ -290,6 +286,9 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	String generateDto(Map<String, Object> jsonMap, List<String> entityCodes) {
 		CompilationUnit compilationUnit = new CompilationUnit();
+		//
+		compilationUnit.setPackageDeclaration("org.meveo.mymodule.dto");
+		compilationUnit.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto."+dtoClass), false, false));
 		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(entityCodes.get(0) + "Dto")
 				.setPublic(true);
 
@@ -317,7 +316,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		field2.createSetter();
 
 		classDeclaration.addConstructor(Modifier.Keyword.PUBLIC);
-		classDeclaration.addConstructor();
+		
 
 		VariableDeclarator variableDeclarator1 = new VariableDeclarator();
 		variableDeclarator1.setType(entityCodes.get(0));
