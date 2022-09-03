@@ -404,7 +404,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				 restMethodParameter.setName(getNonCapitalizeName(dtoClass));
 		}
 				
-		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE") || httpMethod.equalsIgnoreCase("GET")) {
+		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE") || httpMethod.equalsIgnoreCase("PUT")) {
 		     restMethodParameter.setType("String");
 			 restMethodParameter.setName(getNonCapitalizeName("uuid"));
 			 restMethodParameter.addSingleMemberAnnotation("PathParam", new StringLiteralExpr("uuid"));
