@@ -343,6 +343,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		cu.getImports().add(new ImportDeclaration(new Name("java.io"), false, true));
 		cu.getImports().add(new ImportDeclaration(new Name("java.util"), false, true));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs"), false, true));
+		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core"), false, true));
+		
 		cu.getImports().add(new ImportDeclaration(new Name("javax.enterprise.context.RequestScoped"), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.inject.Inject"), false, false));
 		
