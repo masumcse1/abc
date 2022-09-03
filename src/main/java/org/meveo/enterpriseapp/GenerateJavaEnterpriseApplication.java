@@ -151,11 +151,11 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	private String moduleCode;
 	
-	private String entityClass ;//= "Product";
-	private String dtoClass ;//= "ProductDto";
-	private String serviceCode ;//= "CreateMyProduct";
-	private String injectedFieldName;// ="CreateMyProduct";
-	private String httpMethod;// ="CreateMyProduct";
+	private String entityClass ;
+	private String dtoClass ;
+	private String serviceCode ;
+	private String injectedFieldName;
+	private String httpMethod;
 	private String pathParameter;
 	private String httpBasePath;
 
@@ -179,8 +179,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	@Override
 	public void execute(Map<String, Object> parameters) throws BusinessException {
 		log.info("generating java enterprise application from module, {}", moduleCode);
-		log.debug("START - GenerateJavaEnterpriseApplication.execute()");
-
+	
 		super.execute(parameters);
 
 		if (moduleCode == null) {
@@ -221,10 +220,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			String moduleWebAppBranch = gitClient.currentBranch(moduleWebAppRepo);
 			File moduleWebAppDirectory = GitHelper.getRepositoryDir(user, moduleCode);
 			Path moduleWebAppPath = moduleWebAppDirectory.toPath();
-			log.debug("===============working. for DTO Generation==============================================");
-			 List<File> filesToCommit = new ArrayList<>();
 			
-			 entityClass   = entityCodes.get(0);
+		    List<File> filesToCommit = new ArrayList<>();
+			
+			    entityClass   = entityCodes.get(0);
 		        dtoClass      = entityCodes.get(0) + "Dto";
 			    String pathJavaDtoFile = "facets/java/org/meveo/model/DTO/" + entityCodes.get(0)+"Dto"+ ".java";
 	            
@@ -239,16 +238,12 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				}
 			
 			
-			log.debug("===============working. for End point Generation==============================================");
-	    	
+			
 			List<String> endpointlist = moduleItems.stream().filter(item -> CUSTOM_ENDPOINT_TEMPLATE.equals(item.getItemClass()))
 					.map(entity -> entity.getItemCode()).collect(Collectors.toList());
 					
 			List<Endpoint> enpointlists= endpointService.findByServiceCode(endpointlist.get(0));
-	     
-			   
-		        log.debug("entityCodes: {}", entityCodes);
-		       
+	           
 		     
 	        for (String endpointstr :endpointlist) {
 	        	Endpoint endpoint = endpointService.findByCode(endpointstr);
@@ -264,16 +259,16 @@ public class GenerateJavaEnterpriseApplication extends Script {
             
             try {
 				
-				File outputFile = new File (moduleWebAppDirectory, pathJavaFile);
-				String fullContent = generateEndPoint(endpoint,entityCodes);
-				FileUtils.write(outputFile, fullContent, StandardCharsets.UTF_8);
-				filesToCommit.add(outputFile);
+				File endPointFile = new File (moduleWebAppDirectory, pathJavaFile);
+				String endPointContent = generateEndPoint(endpoint,entityCodes);
+				FileUtils.write(endPointFile, endPointContent, StandardCharsets.UTF_8);
+				filesToCommit.add(endPointFile);
 			} catch (IOException e) {
 				throw new BusinessException("Failed creating file." + e.getMessage());
 			}
             
             if (!filesToCommit.isEmpty()) {
-				gitClient.commitFiles(moduleWebAppRepo, filesToCommit, "Initialize local commits test");
+				gitClient.commitFiles(moduleWebAppRepo, filesToCommit, "DTO & Endpoint generation.");
 			}
             
 	        }
