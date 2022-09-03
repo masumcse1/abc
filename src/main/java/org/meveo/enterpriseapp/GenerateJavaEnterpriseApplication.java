@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.servlet.ServletException;
+import javax.ws.rs.PathParam;
 
 import org.apache.commons.io.FileUtils;
 import org.meveo.admin.exception.BusinessException;
@@ -389,12 +390,28 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	 
 	private MethodDeclaration generateRestMethod(ClassOrInterfaceDeclaration clazz) {
 		MethodDeclaration restMethod = clazz.addMethod(getRestMethodName(entityClass, httpMethod),	Modifier.Keyword.PUBLIC);
-		restMethod.addParameter(dtoClass, getNonCapitalizeName(dtoClass));
 		restMethod.setType("Response");
 		restMethod.addMarkerAnnotation(httpMethod);
-		//System.out.println(httpMethod+"--------------"+pathParameter);
-		//if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE"))
-	//	restMethod.addMarkerAnnotation(pathParameter);
+		
+		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")) {
+		 restMethod.addSingleMemberAnnotation("Path", new StringLiteralExpr("/{uuid}"));
+		}
+		
+		Parameter restMethodParameter = new Parameter();
+		
+		if(httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
+			     restMethodParameter.setType(dtoClass);
+				 restMethodParameter.setName(getNonCapitalizeName(dtoClass));
+		}
+				
+		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")) {
+		     restMethodParameter.setType("String");
+			 restMethodParameter.setName(getNonCapitalizeName("uuid"));
+			 restMethodParameter.addSingleMemberAnnotation("PathParam", new StringLiteralExpr("uuid"));
+	}		
+		
+		restMethod.addParameter(restMethodParameter);
+		
 		restMethod.addSingleMemberAnnotation("Produces", "MediaType.APPLICATION_JSON");
 		restMethod.addSingleMemberAnnotation("Consumes", "MediaType.APPLICATION_JSON");
 		restMethod.addThrownException(IOException.class);
