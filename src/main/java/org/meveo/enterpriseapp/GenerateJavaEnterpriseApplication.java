@@ -356,7 +356,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		beforeTryblock.addStatement(getType_methodCall);
 		}
 		
-		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")) {
+		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE") || httpMethod.equalsIgnoreCase("PUT")) {
 			MethodCallExpr getType_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
 			getType_methodCall.addArgument(new StringLiteralExpr("uuid"));
 			getType_methodCall.addArgument("uuid");
@@ -404,7 +404,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				 restMethodParameter.setName(getNonCapitalizeName(dtoClass));
 		}
 				
-		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")) {
+		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE") || httpMethod.equalsIgnoreCase("GET")) {
 		     restMethodParameter.setType("String");
 			 restMethodParameter.setName(getNonCapitalizeName("uuid"));
 			 restMethodParameter.addSingleMemberAnnotation("PathParam", new StringLiteralExpr("uuid"));
