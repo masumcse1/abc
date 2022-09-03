@@ -330,7 +330,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				.addParameter(new Parameter(variableDeclarator2.getType(), "type"))
 				.setBody(JavaParser.parseBlock("{\n this.product = product; \n  this.type = type; \n}"));
 
-		System.out.println("clas:" + compilationUnit);
+	
 		return compilationUnit.toString();
 
 	}
@@ -398,8 +398,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		restMethod.setBody(beforeTryblock);    
 
 		restMethod.getBody().get().getStatements().add(getReturnType());
-		//System.out.println(cu);
-		return cu.toString();
+			return cu.toString();
 	}
 	
 	
