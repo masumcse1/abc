@@ -422,8 +422,14 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	
 	private Statement generateTryBlock(VariableDeclarator assignmentVariable) {
 		BlockStmt tryblock = new BlockStmt();
+		
 		if(httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT"))
 		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "set" + entityClass).addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(dtoClass)), "get" + entityClass)));
+		
+		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("PUT") ||  httpMethod.equalsIgnoreCase("DELETE") )
+		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "setUuid").addArgument("uuid"));
+			
+		
 		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "init").addArgument("parameterMap"));
 		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "execute").addArgument("parameterMap"));
 		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "finalize").addArgument("parameterMap"));
