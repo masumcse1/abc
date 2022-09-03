@@ -393,7 +393,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		restMethod.setType("Response");
 		restMethod.addMarkerAnnotation(httpMethod);
 		
-		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")) {
+		if(httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE") || httpMethod.equalsIgnoreCase("PUT")) {
 		 restMethod.addSingleMemberAnnotation("Path", new StringLiteralExpr("/{uuid}"));
 		}
 		
