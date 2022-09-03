@@ -440,7 +440,6 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		
 		restMethod.addSingleMemberAnnotation("Produces", "MediaType.APPLICATION_JSON");
 		restMethod.addSingleMemberAnnotation("Consumes", "MediaType.APPLICATION_JSON");
-		restMethod.addThrownException(IOException.class);
 		restMethod.addThrownException(ServletException.class);
       return restMethod;
 
