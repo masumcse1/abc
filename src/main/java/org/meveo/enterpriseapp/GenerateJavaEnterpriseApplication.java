@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -57,6 +58,7 @@ import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.SimpleName;
@@ -220,12 +222,26 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			File moduleWebAppDirectory = GitHelper.getRepositoryDir(user, moduleCode);
 			Path moduleWebAppPath = moduleWebAppDirectory.toPath();
 			log.debug("===============working. for DTO Generation==============================================");
+			 List<File> filesToCommit = new ArrayList<>();
+			
 
-			CompilationUnit compilationUnit = new CompilationUnit();
-
-			compilationUnit.addImport("org.meveo.model.customEntities." + entityCodes.get(0));
+			//compilationUnit.addImport("org.meveo.model.customEntities." + entityCodes.get(0));
 			// jsonMap.put("type", "String");
-			//generateDto(jsonMap, compilationUnit, entityCodes);
+			
+			
+			    String pathJavaDtoFile = "facets/java/org/meveo/model/DTO/" + entityCodes.get(0)+"DTO"+ ".java";
+	            
+	            try {
+					
+					File dtofile = new File (moduleWebAppDirectory, pathJavaDtoFile);
+					String dtocontent = generateDto(jsonMap, entityCodes);
+					FileUtils.write(dtofile, dtocontent, StandardCharsets.UTF_8);
+					filesToCommit.add(dtofile);
+				} catch (IOException e) {
+					throw new BusinessException("Failed creating file." + e.getMessage());
+				}
+			
+			
 			log.debug("===============working. for End point Generation==============================================");
 	    	
 			List<String> endpointlist = moduleItems.stream().filter(item -> CUSTOM_ENDPOINT_TEMPLATE.equals(item.getItemClass()))
@@ -236,7 +252,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			    entityClass   = entityCodes.get(0);
 		        dtoClass      = entityCodes.get(0) + "Dto";
 		        log.debug("entityCodes: {}", entityCodes);
-		        List<File> filesToCommit = new ArrayList<>();
+		       
 		     
 	        for (String endpointstr :endpointlist) {
 	        	Endpoint endpoint = endpointService.findByCode(endpointstr);
@@ -272,8 +288,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		log.debug("END - GenerateJavaEnterpriseApplication.execute()--------------");
 	}
 
-	void generateDto(Map<String, Object> jsonMap, CompilationUnit compilationUnit, List<String> entityCodes) {
-
+	String generateDto(Map<String, Object> jsonMap, List<String> entityCodes) {
+		CompilationUnit compilationUnit = new CompilationUnit();
 		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(entityCodes.get(0) + "Dto")
 				.setPublic(true);
 
@@ -315,6 +331,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				.setBody(JavaParser.parseBlock("{\n this.product = product; \n  this.type = type; \n}"));
 
 		System.out.println("clas:" + compilationUnit);
+		return compilationUnit.toString();
 
 	}
  
@@ -322,7 +339,18 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		
 	    CompilationUnit cu = new CompilationUnit();
 		cu.setPackageDeclaration("org.meveo.mymodule.resource");
-		cu.addImport("java.util", false, true);
+		
+		cu.getImports().add(new ImportDeclaration(new Name("java.io"), false, true));
+		cu.getImports().add(new ImportDeclaration(new Name("java.util"), false, true));
+		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs"), false, true));
+		cu.getImports().add(new ImportDeclaration(new Name("javax.enterprise.context.RequestScoped"), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name("javax.inject.Inject"), false, false));
+		
+		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.admin.exception.BusinessException"), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto.CustomEndpointResource"), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto."+dtoClass), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name(endpoint.getService().getCode()), false, false));
+	
 
 		ClassOrInterfaceDeclaration clazz=generateRestClass(cu);
 
