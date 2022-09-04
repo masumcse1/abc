@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.servlet.ServletException;
+import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.PathParam;
 
 import org.apache.commons.io.FileUtils;
@@ -221,10 +222,26 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			File moduleWebAppDirectory = GitHelper.getRepositoryDir(user, moduleCode);
 			Path moduleWebAppPath = moduleWebAppDirectory.toPath();
 			
+			entityClass   = entityCodes.get(0);
+		    dtoClass      = entityCodes.get(0) + "Dto";
 		    List<File> filesToCommit = new ArrayList<>();
-			
-			    entityClass   = entityCodes.get(0);
-		        dtoClass      = entityCodes.get(0) + "Dto";
+		    // Rest Configuration file 
+		    
+		    String pathJavaRestConfigurationFile = "facets/java/org/meveo/model/config/" + entityCodes.get(0)+"RestConfig"+ ".java";
+            
+            try {
+				
+				File restConfigfile = new File (moduleWebAppDirectory, pathJavaRestConfigurationFile);
+				String restConfigurationFileContent = generateRestConfiguration(jsonMap, entityCodes);
+				FileUtils.write(restConfigfile, restConfigurationFileContent, StandardCharsets.UTF_8);
+				filesToCommit.add(restConfigfile);
+			} catch (IOException e) {
+				throw new BusinessException("Failed creating file." + e.getMessage());
+			}
+		    
+		    
+			//////DTO 
+			  
 			    String pathJavaDtoFile = "facets/java/org/meveo/model/DTO/" + entityCodes.get(0)+"Dto"+ ".java";
 	            
 	            try {
@@ -276,6 +293,23 @@ public class GenerateJavaEnterpriseApplication extends Script {
              
 		}
 		log.debug("END - GenerateJavaEnterpriseApplication.execute()--------------");
+	}
+	
+	String generateRestConfiguration(Map<String, Object> jsonMap, List<String> entityCodes) {
+		CompilationUnit compilationUnit = new CompilationUnit();
+		compilationUnit.setPackageDeclaration("org.meveo.mymodule.rest");
+		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.ApplicationPath"), false, false));
+		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core.Application"), false, false));
+		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(entityCodes.get(0) + "RestConfig").setPublic(true);
+		classDeclaration.addSingleMemberAnnotation("ApplicationPath", new StringLiteralExpr("api"));
+
+
+		NodeList<ClassOrInterfaceType> extendsList = new NodeList<>();
+		extendsList.add(new ClassOrInterfaceType().setName(new SimpleName("Application")));
+		classDeclaration.setExtendedTypes(extendsList);
+	
+		return compilationUnit.toString();
+
 	}
 
 	String generateDto(Map<String, Object> jsonMap, List<String> entityCodes) {
@@ -337,18 +371,14 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		cu.getImports().add(new ImportDeclaration(new Name("java.util"), false, true));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs"), false, true));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core"), false, true));
-		
 		cu.getImports().add(new ImportDeclaration(new Name("javax.enterprise.context.RequestScoped"), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.inject.Inject"), false, false));
-		
 		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.admin.exception.BusinessException"), false, false));
-		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto.CustomEndpointResource"), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.base.CustomEndpointResource"), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto."+dtoClass), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name(endpoint.getService().getCode()), false, false));
 	
-
 		ClassOrInterfaceDeclaration clazz=generateRestClass(cu);
-
 		MethodDeclaration restMethod = generateRestMethod(clazz);
 
 		BlockStmt beforeTryblock = new BlockStmt();
