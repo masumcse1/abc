@@ -234,50 +234,56 @@ public class GenerateWebAppScript extends Script {
 			//19:33:51,303 INFO  [stdout] (default task-47) inputfile./meveodata/default/git/WebApplication/utils/index.js
 
 	//		19:33:51,317 INFO  [stdout] (default task-47) -------------------------END------------------------------------------
-
-			try (Stream<Path> sourceStream = Files.walk(webappTemplatePath)) {
-				List<Path> sources = sourceStream.collect(Collectors.toList());
-				List<Path> destinations =
-						sources.stream().map(webappTemplatePath::relativize).map(moduleWebAppPath::resolve)
-								.collect(Collectors.toList());
-
-				List<File> filesToCommit = new ArrayList<>();
-
-				for (int index = 0; index < sources.size(); index++) {
-					Path sourcePath = sources.get(index);
-					Path destinationPath = destinations.get(index);
-					
-					 if (sourcePath.toString().contains(INDEX_TEMPLATE)) {
-					try {
-						File outputFile = new File(destinationPath.toString());
-						System.out.println("outputFile"+outputFile);
-						File inputfile = new File(sourcePath.toString());
-						System.out.println("inputfile"+inputfile);
-						String inputcontent = FileUtils.readFileToString(inputfile,StandardCharsets.UTF_8.name());
-					    FileUtils.write(outputFile, inputcontent, StandardCharsets.UTF_8);
-					    filesToCommit.add(outputFile);
-					} catch (Exception e) {
-						throw new BusinessException("Failed creating file." + e.getMessage());
-					}
-					 }
-				 
-				}
-
-				if (!filesToCommit.isEmpty()) {
-					gitClient.commitFiles(moduleWebAppRepo, filesToCommit, "Initialize Entity GUI template");
-					
-				}
-
-				System.out.println("-------------------------END------------------------------------------");
-		
-
-			} catch (IOException ioe) {
-				throw new BusinessException(ioe);
+			List<File> filesToCommit = new ArrayList<>();
+			
+			List<File> fileCopy = fileCopy(webappTemplatePath,moduleWebAppPath);
+			filesToCommit.addAll(fileCopy);
+			
+			if (!filesToCommit.isEmpty()) {
+				gitClient.commitFiles(moduleWebAppRepo, filesToCommit, "Initialize Entity GUI template");
+				
 			}
+			
 		}
 		LOG.debug("END - GenerateWebAppScript.execute()");
 	}
 
+	
+	private List<File> fileCopy(Path webappTemplatePath,Path moduleWebAppPath) throws BusinessException {
+		List<File> filesToCommit = new ArrayList<>();
+		
+		try (Stream<Path> sourceStream = Files.walk(webappTemplatePath)) {
+			List<Path> sources = sourceStream.collect(Collectors.toList());
+			List<Path> destinations =
+					sources.stream().map(webappTemplatePath::relativize).map(moduleWebAppPath::resolve)
+							.collect(Collectors.toList());
+
+			for (int index = 0; index < sources.size(); index++) {
+				Path sourcePath = sources.get(index);
+				Path destinationPath = destinations.get(index);
+				
+				 if (sourcePath.toString().contains(INDEX_TEMPLATE)) {
+				try {
+					File outputFile = new File(destinationPath.toString());
+					File inputfile = new File(sourcePath.toString());
+					String inputcontent = FileUtils.readFileToString(inputfile,StandardCharsets.UTF_8.name());
+				    FileUtils.write(outputFile, inputcontent, StandardCharsets.UTF_8);
+				    filesToCommit.add(outputFile);
+				} catch (Exception e) {
+					throw new BusinessException("Failed creating file." + e.getMessage());
+				}
+				 }
+			 
+			}
+
+		} catch (IOException ioe) {
+			throw new BusinessException(ioe);
+		}
+		
+		return filesToCommit;
+	}
+	
+	
 	private File searchAndReplace(File sourceFile, File destinationFile, String stringToReplace,
 			String replacement) throws BusinessException {
 		StringWriter writer = new StringWriter();
