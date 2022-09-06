@@ -3,6 +3,7 @@ package org.meveo.enterpriseapp;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.inject.Inject;
 import javax.servlet.ServletException;
@@ -91,7 +93,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	private static final String MEVEO_BRANCH = "meveo";
 
-	private static final String MV_TEMPLATE_REPO = "https://github.com/meveo-org/mv-template-1.git";
+	private static final String MV_TEMPLATE_REPO = "https://github.com/masumcse1/mv-template.git";
 
 	private static final String LOG_SEPARATOR = "***********************************************************";
 
@@ -99,13 +101,14 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	
 	private static final String CUSTOM_ENDPOINT_TEMPLATE = Endpoint.class.getName();
 
-	private static final String WEB_APP_TEMPLATE = JavaEnterpriseApp.class.getSimpleName();
+	private static final String JAVAENTERPRISE_APP_TEMPLATE = JavaEnterpriseApp.class.getSimpleName();
 
 	private static final String PARENT = "Parent";
 
 	private static final String PAGE_TEMPLATE = "Parent.js";
 
-	private static final String INDEX_TEMPLATE = "index.js";
+	private static final String CUSTOMENDPOINTRESOURCE = "CustomEndpointResource.java";
+	private static final String CDIBEANFILE = "beans.xml";
 
 	private static final String LOCALHOST = "http://localhost:8080/";
 
@@ -215,8 +218,27 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			JavaEnterpriseApp webapp = crossStorageApi.find(getDefaultRepository(), JavaEnterpriseApp.class)
 					.by("code", module.getCode()).getResult();
 
+			//template
+			// SAVE COPY OF MV-TEMPLATE TO MEVEO GIT REPOSITORY
+			GitRepository enterpriseappTemplateRepo = gitRepositoryService.findByCode(JAVAENTERPRISE_APP_TEMPLATE);
+			if (enterpriseappTemplateRepo == null) {
+				log.debug("CREATE NEW GitRepository: {}", JAVAENTERPRISE_APP_TEMPLATE);
+				enterpriseappTemplateRepo = new GitRepository();
+				enterpriseappTemplateRepo.setCode(JAVAENTERPRISE_APP_TEMPLATE);
+				enterpriseappTemplateRepo.setDescription(JAVAENTERPRISE_APP_TEMPLATE + " Template repository");
+				enterpriseappTemplateRepo.setRemoteOrigin(MV_TEMPLATE_REPO);
+				enterpriseappTemplateRepo.setDefaultRemoteUsername("");
+				enterpriseappTemplateRepo.setDefaultRemotePassword("");
+				gitRepositoryService.create(enterpriseappTemplateRepo);
+			} else {
+				gitClient.pull(enterpriseappTemplateRepo, "", "");
+			}
+			File webappTemplateDirectory = GitHelper.getRepositoryDir(user, JAVAENTERPRISE_APP_TEMPLATE);
+			Path enterpriseappTemplatePath = webappTemplateDirectory.toPath();
+			log.debug("webappTemplate path: {}", enterpriseappTemplatePath.toString());
+			
+			///mymodule
 			GitRepository moduleWebAppRepo = gitRepositoryService.findByCode(moduleCode);
-
 			gitClient.checkout(moduleWebAppRepo, MEVEO_BRANCH, true);
 			String moduleWebAppBranch = gitClient.currentBranch(moduleWebAppRepo);
 			File moduleWebAppDirectory = GitHelper.getRepositoryDir(user, moduleCode);
@@ -225,9 +247,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			entityClass   = entityCodes.get(0);
 		    dtoClass      = entityCodes.get(0) + "Dto";
 		    List<File> filesToCommit = new ArrayList<>();
+		    
 		    // Rest Configuration file 
 		    
-		    String pathJavaRestConfigurationFile = "facets/java/org/meveo/model/config/" + entityCodes.get(0)+"RestConfig"+ ".java";
+		    String pathJavaRestConfigurationFile = "facets/java/org/meveo/rest/" + capitalize(moduleCode)+"RestConfig"+ ".java";
             
             try {
 				
@@ -238,12 +261,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			} catch (IOException e) {
 				throw new BusinessException("Failed creating file." + e.getMessage());
 			}
-		    
-		    
 			//////DTO 
 			  
-			    String pathJavaDtoFile = "facets/java/org/meveo/model/DTO/" + entityCodes.get(0)+"Dto"+ ".java";
-	            
+			    String pathJavaDtoFile = "facets/java/org/meveo/dto/" + entityCodes.get(0)+"Dto"+ ".java";
+		
 	            try {
 					
 					File dtofile = new File (moduleWebAppDirectory, pathJavaDtoFile);
@@ -254,13 +275,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 					throw new BusinessException("Failed creating file." + e.getMessage());
 				}
 			
-			
-			
 			List<String> endpointlist = moduleItems.stream().filter(item -> CUSTOM_ENDPOINT_TEMPLATE.equals(item.getItemClass()))
 					.map(entity -> entity.getItemCode()).collect(Collectors.toList());
 					
 			List<Endpoint> enpointlists= endpointService.findByServiceCode(endpointlist.get(0));
-	           
 		     
 	        for (String endpointstr :endpointlist) {
 	        	Endpoint endpoint = endpointService.findByCode(endpointstr);
@@ -270,9 +288,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		        pathParameter = endpoint.getPath();
 		        httpBasePath  = endpoint.getBasePath();
 		        injectedFieldName = getNonCapitalizeName(serviceCode);
-			
-            
-            String pathJavaFile = "facets/java/org/meveo/model/customEndPoint/" + getRestClassName(entityClass, httpMethod) + ".java";
+	        
+            String pathJavaFile = "facets/java/org/meveo/resource/" + getRestClassName(entityClass, httpMethod) + ".java";
             
             try {
 				
@@ -283,17 +300,22 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			} catch (IOException e) {
 				throw new BusinessException("Failed creating file." + e.getMessage());
 			}
-            
-            if (!filesToCommit.isEmpty()) {
-				gitClient.commitFiles(moduleWebAppRepo, filesToCommit, "DTO & Endpoint generation.");
-			}
-            
+            			
+			List<File> templatefiles = templateFileCopy(enterpriseappTemplatePath,moduleWebAppPath);
+			filesToCommit.addAll(templatefiles);
+			
+			
+			  if (!filesToCommit.isEmpty()) { 
+		
+				  gitClient.commitFiles(moduleWebAppRepo,  filesToCommit, "DTO & Endpoint generation."); }
+			      
 	        }
 	        
              
 		}
 		log.debug("END - GenerateJavaEnterpriseApplication.execute()--------------");
 	}
+	
 	
 	String generateRestConfiguration(Map<String, Object> jsonMap, List<String> entityCodes) {
 		CompilationUnit compilationUnit = new CompilationUnit();
@@ -556,5 +578,47 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		return objectReferenceName;
 
 	}
+	
+	public static String capitalize(String str) {
+	    if(str == null || str.isEmpty()) {
+	        return str;
+	    }
+
+	    return str.substring(0, 1).toUpperCase() + str.substring(1);
+	}
+	
+
+	private List<File> templateFileCopy(Path webappTemplatePath,Path moduleWebAppPath) throws BusinessException {
+		List<File> filesToCommit = new ArrayList<>();
+		
+		try (Stream<Path> sourceStream = Files.walk(webappTemplatePath)) {
+			List<Path> sources = sourceStream.collect(Collectors.toList());
+			List<Path> destinations = sources.stream().map(webappTemplatePath::relativize).map(moduleWebAppPath::resolve)
+							.collect(Collectors.toList());
+			for (int index = 0; index < sources.size(); index++) {
+				Path sourcePath = sources.get(index);
+				Path destinationPath = destinations.get(index);
+				
+				 if (sourcePath.toString().contains(CUSTOMENDPOINTRESOURCE) || sourcePath.toString().contains(CDIBEANFILE)) {
+				try {
+					File outputFile = new File(destinationPath.toString());
+					File inputfile = new File(sourcePath.toString());
+					String inputcontent = FileUtils.readFileToString(inputfile,StandardCharsets.UTF_8.name());
+				    FileUtils.write(outputFile, inputcontent, StandardCharsets.UTF_8);
+				    filesToCommit.add(outputFile);
+				} catch (Exception e) {
+					throw new BusinessException("Failed creating file." + e.getMessage());
+				}
+				 }
+			 
+			}
+
+		} catch (IOException ioe) {
+			throw new BusinessException(ioe);
+		}
+		
+		return filesToCommit;
+	}
+	
 
 }
