@@ -250,7 +250,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		    
 		    // Rest Configuration file 
 		    
-		    String pathJavaRestConfigurationFile = "facets/java/org/meveo/rest/" + capitalize(moduleCode)+"RestConfig"+ ".java";
+		    String pathJavaRestConfigurationFile = "facets/java/org/meveo/"+moduleCode+"/rest/" + capitalize(moduleCode)+"RestConfig"+ ".java";
             
             try {
 				
@@ -263,7 +263,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			}
 			//////DTO 
 			  
-			    String pathJavaDtoFile = "facets/java/org/meveo/dto/" + entityCodes.get(0)+"Dto"+ ".java";
+			    String pathJavaDtoFile = "facets/java/org/meveo/"+moduleCode+"/dto/" + entityCodes.get(0)+"Dto"+ ".java";
 		
 	            try {
 					
@@ -289,7 +289,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		        httpBasePath  = endpoint.getBasePath();
 		        injectedFieldName = getNonCapitalizeName(serviceCode);
 	        
-            String pathJavaFile = "facets/java/org/meveo/resource/" + getRestClassName(entityClass, httpMethod) + ".java";
+            String pathJavaFile = "facets/java/org/meveo/"+moduleCode+"/resource/" + getRestClassName(entityClass, httpMethod) + ".java";
             
             try {
 				
@@ -317,12 +317,12 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	}
 	
 	
-	String generateRestConfiguration(Map<String, Object> jsonMap, List<String> entityCodes) {
+	String generateRestConfiguration(Map<String, Object> jsonMap, String moduleCode) {
 		CompilationUnit compilationUnit = new CompilationUnit();
 		compilationUnit.setPackageDeclaration("org.meveo.mymodule.rest");
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.ApplicationPath"), false, false));
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core.Application"), false, false));
-		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(entityCodes.get(0) + "RestConfig").setPublic(true);
+		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(moduleCode + "RestConfig").setPublic(true);
 		classDeclaration.addSingleMemberAnnotation("ApplicationPath", new StringLiteralExpr("api"));
 
 
