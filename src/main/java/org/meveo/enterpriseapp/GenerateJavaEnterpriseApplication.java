@@ -255,7 +255,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
             try {
 				
 				File restConfigfile = new File (moduleWebAppDirectory, pathJavaRestConfigurationFile);
-				String restConfigurationFileContent = generateRestConfiguration(jsonMap, entityCodes);
+				String restConfigurationFileContent = generateRestConfiguration(jsonMap, capitalize(moduleCode));
 				FileUtils.write(restConfigfile, restConfigurationFileContent, StandardCharsets.UTF_8);
 				filesToCommit.add(restConfigfile);
 			} catch (IOException e) {
