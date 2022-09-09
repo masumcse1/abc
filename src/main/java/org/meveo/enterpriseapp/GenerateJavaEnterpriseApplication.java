@@ -76,17 +76,9 @@ import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 public class GenerateJavaEnterpriseApplication extends Script {
-
-	@Inject
-	private JSONSchemaIntoJavaClassParser jSONSchemaIntoJavaClassParser;
-
-	@Inject
-	private JSONSchemaGenerator jSONSchemaGenerator;
-
+	
 	private Map<String, Object> jsonMap;
-
-	///////////////////////////////////////////
-
+	
 	private static final Logger log = LoggerFactory.getLogger(GenerateJavaEnterpriseApplication.class);
 
 	private static final String MASTER_BRANCH = "master";
@@ -103,11 +95,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	private static final String JAVAENTERPRISE_APP_TEMPLATE = JavaEnterpriseApp.class.getSimpleName();
 
-	private static final String PARENT = "Parent";
-
-	private static final String PAGE_TEMPLATE = "Parent.js";
-
 	private static final String CUSTOMENDPOINTRESOURCE = "CustomEndpointResource.java";
+
 	private static final String CDIBEANFILE = "beans.xml";
 
 	private static final String LOCALHOST = "http://localhost:8080/";
@@ -119,12 +108,6 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private static final String KEYCLOAK_RESOURCE = "meveo-web";
 
 	private static final String MODULE_CODE = "MODULE_CODE";
-
-	private static final String AFFIX = "-UI";
-
-	private String SLASH = File.separator;
-
-	private String baseUrl = null;
 
 	private CrossStorageService crossStorageService = getCDIBean(CrossStorageService.class);
 
@@ -156,11 +139,17 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private String moduleCode;
 
 	private String entityClass;
+	
 	private String dtoClass;
+	
 	private String serviceCode;
+	
 	private String injectedFieldName;
+	
 	private String httpMethod;
+	
 	private String pathParameter;
+	
 	private String httpBasePath;
 
 	public String getModuleCode() {
@@ -187,23 +176,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		}
 		MeveoModule module = meveoModuleService.findByCode(moduleCode);
 		MeveoUser user = (MeveoUser) parameters.get(CONTEXT_CURRENT_USER);
-		ParamBean appConfig = paramBeanFactory.getInstance();
-		String remoteUrl = appConfig.getProperty("meveo.git.directory.remote.url", null);
-		String remoteUsername = appConfig.getProperty("meveo.git.directory.remote.username", null);
-		String remotePassword = appConfig.getProperty("meveo.git.directory.remote.password", null);
-		String appContext = appConfig.getProperty("meveo.admin.webContext", "");
-		String serverUrl = appConfig.getProperty("meveo.admin.baseUrl", null);
-		String keycloakUrl = System.getProperty("meveo.keycloak.url");
-		String keycloakRealm = System.getProperty("meveo.keycloak.realm");
-		String keycloakResource = System.getProperty("meveo.keycloak.client");
-		this.baseUrl = serverUrl;
-		if (this.baseUrl == null) {
-			this.baseUrl = LOCALHOST;
-		}
-		this.baseUrl = this.baseUrl.strip().endsWith("/") ? this.baseUrl : this.baseUrl + "/";
-		this.baseUrl = this.baseUrl + appContext;
+	
 		log.info("generating java enterprise application from module, {}", moduleCode);
-		log.debug("baseUrl: {}", baseUrl);
 		if (module != null) {
 			log.debug("Module found: {}", module.getCode());
 			Set<MeveoModuleItem> moduleItems = module.getModuleItems();
@@ -211,7 +185,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			List<String> entityCodes = moduleItems.stream().filter(item -> CUSTOM_TEMPLATE.equals(item.getItemClass()))
 					.map(entity -> entity.getItemCode()).collect(Collectors.toList());
 			log.debug("entityCodes: {}", entityCodes);
-			JavaEnterpriseApp webapp = crossStorageApi.find(getDefaultRepository(), JavaEnterpriseApp.class)
+			JavaEnterpriseApp  javaEnterpriseApp = crossStorageApi.find(getDefaultRepository(), JavaEnterpriseApp.class)
 					.by("code", module.getCode()).getResult();
 
 		// template
@@ -258,13 +232,12 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			throw new BusinessException("Failed creating file." + e.getMessage());
 		}
 		////// DTO
-		String pathJavaDtoFile = "facets/java/org/meveo/" + moduleCode + "/dto/" + entityCodes.get(0) + "Dto"
-				+ ".java";
+		String pathJavaDtoFile = "facets/java/org/meveo/" + moduleCode + "/dto/" + dtoClass + ".java";
 
 		try {
-
+ 
 			File dtofile = new File(moduleWebAppDirectory, pathJavaDtoFile);
-			String dtocontent = generateDto(jsonMap, entityCodes);
+			String dtocontent = generateDto(jsonMap);
 			FileUtils.write(dtofile, dtocontent, StandardCharsets.UTF_8);
 			filesToCommit.add(dtofile);
 		} catch (IOException e) {
@@ -286,13 +259,13 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			httpBasePath = endpoint.getBasePath();
 			injectedFieldName = getNonCapitalizeName(serviceCode);
 
-		////// DTO
-		String pathJavaFile = "facets/java/org/meveo/" + moduleCode + "/resource/"
+		////// Endpoint
+		String pathEndpointFile = "facets/java/org/meveo/" + moduleCode + "/resource/"
 					+ getRestClassName(entityClass, httpMethod) + ".java";
 
 		try {
 
-			File endPointFile = new File(moduleWebAppDirectory, pathJavaFile);
+			File endPointFile = new File(moduleWebAppDirectory, pathEndpointFile);
 			String endPointContent = generateEndPoint(endpoint, entityCodes);
 			FileUtils.write(endPointFile, endPointContent, StandardCharsets.UTF_8);
 			filesToCommit.add(endPointFile);
@@ -330,13 +303,13 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	}
 
-	String generateDto(Map<String, Object> jsonMap, List<String> entityCodes) {
+	String generateDto(Map<String, Object> jsonMap) {
 		CompilationUnit compilationUnit = new CompilationUnit();
 		//
 		compilationUnit.setPackageDeclaration("org.meveo.mymodule.dto");
 		compilationUnit.getImports()
 				.add(new ImportDeclaration(new Name("org.meveo.model.customEntities." + entityClass), false, false));
-		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(entityCodes.get(0) + "Dto")
+		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(dtoClass)
 				.setPublic(true);
 
 		FieldDeclaration field1 = new FieldDeclaration();
@@ -350,8 +323,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 		FieldDeclaration field2 = new FieldDeclaration();
 		VariableDeclarator variable2 = new VariableDeclarator();
-		variable2.setName(entityCodes.get(0).toLowerCase());
-		variable2.setType(entityCodes.get(0));
+		variable2.setName(entityClass.toLowerCase());
+		variable2.setType(entityClass);
 
 		field2.setModifiers(Modifier.Keyword.PRIVATE);
 		field2.addVariable(variable2);
@@ -365,7 +338,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		classDeclaration.addConstructor(Modifier.Keyword.PUBLIC);
 
 		VariableDeclarator variableDeclarator1 = new VariableDeclarator();
-		variableDeclarator1.setType(entityCodes.get(0));
+		variableDeclarator1.setType(entityClass);
 
 		VariableDeclarator variableDeclarator2 = new VariableDeclarator();
 		variableDeclarator2.setType("String");
