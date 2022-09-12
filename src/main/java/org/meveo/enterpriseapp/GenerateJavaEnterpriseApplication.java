@@ -560,7 +560,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	}
 	
 	boolean isImplementedByCustomEntity(String className) {
-		
+		String implementedIninterface=new String("CustomEntity");  
 		boolean isImplemented=false;
 		try {
 			
@@ -568,17 +568,19 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			@SuppressWarnings("rawtypes")
 			Class clazz = Class.forName(modelClass);
 			String interfacename = Arrays.toString(clazz.getInterfaces());
+			interfacename = interfacename.replaceAll("[^a-zA-Z0-9.]", " "); 
 			interfacename=interfacename.substring(interfacename.lastIndexOf(".") + 1);
-			if (interfacename.equalsIgnoreCase("CustomEntity"))
+			interfacename=interfacename.trim();
+			if (interfacename.equals(implementedIninterface))
 				isImplemented=true;
 	
 		} catch (Exception e) {
-			e.printStackTrace();
+			
 		}
 		
 		return isImplemented;
 	}
-
+	
 	private List<File> templateFileCopy(Path webappTemplatePath, Path moduleWebAppPath) throws BusinessException {
 		List<File> filesToCommit = new ArrayList<>();
 
