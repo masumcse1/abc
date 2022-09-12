@@ -240,10 +240,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			List<FunctionIO> inputList = scriptInstance.getInputs();
 			// identify class which has implements CustomEntity
 			 for(FunctionIO ss:inputList) {
-				 if(!ss.getType().equals("String")) 
-					
+				
+					if( isImplementedByCustomEntity(ss.getType())) {
 						 endPointEntityClass =ss.getType();
-					
+					}
 				 
 			 }
 			
