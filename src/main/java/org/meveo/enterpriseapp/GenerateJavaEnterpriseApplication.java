@@ -82,8 +82,6 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType;
 
 public class GenerateJavaEnterpriseApplication extends Script {
 	
-	private Map<String, Object> jsonMap;
-	
 	private static final Logger log = LoggerFactory.getLogger(GenerateJavaEnterpriseApplication.class);
 
 	private static final String MASTER_BRANCH = "master";
@@ -103,16 +101,6 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private static final String CUSTOMENDPOINTRESOURCE = "CustomEndpointResource.java";
 
 	private static final String CDIBEANFILE = "beans.xml";
-
-	private static final String LOCALHOST = "http://localhost:8080/";
-
-	private static final String KEYCLOAK_URL = "http://host.docker.internal:8081/auth";
-
-	private static final String KEYCLOAK_REALM = "meveo";
-
-	private static final String KEYCLOAK_RESOURCE = "meveo-web";
-
-	private static final String MODULE_CODE = "MODULE_CODE";
 
 	private CrossStorageService crossStorageService = getCDIBean(CrossStorageService.class);
 
@@ -179,7 +167,6 @@ public class GenerateJavaEnterpriseApplication extends Script {
 					.map(entity -> entity.getItemCode()).collect(Collectors.toList());
 			log.debug("entityCodes: {}", entityCodes);
 	
-		// template
 		// SAVE COPY OF MV-TEMPLATE TO MEVEO GIT REPOSITORY
 		GitRepository enterpriseappTemplateRepo = gitRepositoryService.findByCode(JAVAENTERPRISE_APP_TEMPLATE);
 		if (enterpriseappTemplateRepo == null) {
@@ -198,7 +185,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		Path enterpriseappTemplatePath = webappTemplateDirectory.toPath();
 		log.debug("webappTemplate path: {}", enterpriseappTemplatePath.toString());
 
-		/// mymodule
+		/// Generated module
 		GitRepository moduleWebAppRepo = gitRepositoryService.findByCode(moduleCode);
 		gitClient.checkout(moduleWebAppRepo, MEVEO_BRANCH, true);
 		String moduleWebAppBranch = gitClient.currentBranch(moduleWebAppRepo);
@@ -207,22 +194,18 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 		List<File> filesToCommit = new ArrayList<>();
 
-		// Rest Configuration file
 		String pathJavaRestConfigurationFile = "facets/java/org/meveo/" + moduleCode + "/rest/"
 				+ capitalize(moduleCode) + "RestConfig" + ".java";
 
 		try {
 
 			File restConfigfile = new File(moduleWebAppDirectory, pathJavaRestConfigurationFile);
-			String restConfigurationFileContent = generateRestConfiguration(jsonMap, capitalize(moduleCode));
+			String restConfigurationFileContent = generateRestConfiguration(capitalize(moduleCode));
 			FileUtils.write(restConfigfile, restConfigurationFileContent, StandardCharsets.UTF_8);
 			filesToCommit.add(restConfigfile);
 		} catch (IOException e) {
 			throw new BusinessException("Failed creating file." + e.getMessage());
 		}
-		
-
-	////// Endpoint
 		
 		List<String> endpointlist = moduleItems.stream()
 				.filter(item -> CUSTOM_ENDPOINT_TEMPLATE.equals(item.getItemClass()))
@@ -230,7 +213,6 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 		List<Endpoint> enpointlists = endpointService.findByServiceCode(endpointlist.get(0));
 
-		//TODO - dynmically load enity type name
 		 String endPointEntityClass=null; 
 		 String endPointDtoClass=null; 
 		 
@@ -238,22 +220,17 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			Endpoint endpoint = endpointService.findByCode(endpointstr);
 			ScriptInstance scriptInstance = scriptInstanceService.findByCode(endpoint.getService().getCode());
 			List<FunctionIO> inputList = scriptInstance.getInputs();
-			// identify class which has implements CustomEntity
 			 for(FunctionIO ss:inputList) {
-				
 					if( isImplementedByCustomEntity(ss.getType())) {
 						 endPointEntityClass =ss.getType();
 					}
-				 
 			 }
 			
 			 if (endPointEntityClass!=null ) {
 			 endPointDtoClass=endPointEntityClass + "Dto"; 
-		// DTO Geneation logic	 
 				String pathJavaDtoFile = "facets/java/org/meveo/" + moduleCode + "/dto/" + endPointDtoClass + ".java";
 
 				try {
-		 
 					File dtofile = new File(moduleWebAppDirectory, pathJavaDtoFile);
 					String dtocontent = generateDto(endPointEntityClass,endPointDtoClass);
 					FileUtils.write(dtofile, dtocontent, StandardCharsets.UTF_8);
@@ -263,12 +240,9 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				}
 			 }
 	
-			
 		String pathEndpointFile = "facets/java/org/meveo/" + moduleCode + "/resource/"
 					+ endpoint.getCode() + ".java";
-
 		try {
-
 			File endPointFile = new File(moduleWebAppDirectory, pathEndpointFile);
 			String endPointContent = generateEndPoint(endpoint, endPointEntityClass,endPointDtoClass);
 			FileUtils.write(endPointFile, endPointContent, StandardCharsets.UTF_8);
@@ -290,7 +264,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		log.debug("------ GenerateJavaEnterpriseApplication.execute()--------------");
 	}
 
-	String generateRestConfiguration(Map<String, Object> jsonMap, String moduleCode) {
+	String generateRestConfiguration(String moduleCode) {
 		CompilationUnit compilationUnit = new CompilationUnit();
 		compilationUnit.setPackageDeclaration("org.meveo.mymodule.rest");
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.ApplicationPath"), false, false));
@@ -309,7 +283,6 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	String generateDto(String endPointEntityClass,String endPointDtoClass) {
 		CompilationUnit compilationUnit = new CompilationUnit();
-		//
 		compilationUnit.setPackageDeclaration("org.meveo.mymodule.dto");
 		compilationUnit.getImports()
 				.add(new ImportDeclaration(new Name("org.meveo.model.customEntities." + endPointEntityClass), false, false));
@@ -346,7 +319,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 		VariableDeclarator variableDeclarator2 = new VariableDeclarator();
 		variableDeclarator2.setType("String");
-
+        //TODO --remove hardcode
 		classDeclaration.addConstructor(Modifier.Keyword.PUBLIC)
 				.addParameter(new Parameter(variableDeclarator1.getType(), "product"))
 				.addParameter(new Parameter(variableDeclarator2.getType(), "type"))
@@ -357,7 +330,6 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	}
 
 	  public String generateEndPoint(Endpoint endPoint,String endPointEntityClass,String endPointDtoClass) {
-	// public String generateEndPoint(String endPointCode,String endpointServiceCode,String httpMethod,String httpBasePath,String serviceCode,String path,String endPointEntityClass,String endPointDtoClass) {
 		  
 		  String serviceCode         = getServiceCode(endPoint.getService().getCode());
 		  String httpMethod          = endPoint.getMethod().getLabel();
