@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -15,17 +14,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.inject.Inject;
-import javax.servlet.ServletException;
-import javax.ws.rs.ApplicationPath;
-import javax.ws.rs.PathParam;
 
 import org.apache.commons.io.FileUtils;
+import org.meveo.persistence.CrossStorageService;
+import org.meveo.security.MeveoUser;
 import org.meveo.admin.exception.BusinessException;
 import org.meveo.api.persistence.CrossStorageApi;
-import org.meveo.commons.utils.MeveoFileUtils;
-import org.meveo.commons.utils.ParamBean;
 import org.meveo.commons.utils.ParamBeanFactory;
-import org.meveo.model.CustomEntity;
 import org.meveo.model.customEntities.CustomEntityTemplate;
 import org.meveo.model.customEntities.JavaEnterpriseApp;
 import org.meveo.model.git.GitRepository;
@@ -35,13 +30,9 @@ import org.meveo.model.scripts.FunctionIO;
 import org.meveo.model.scripts.ScriptInstance;
 import org.meveo.model.storage.Repository;
 import org.meveo.model.technicalservice.endpoint.Endpoint;
-import org.meveo.persistence.CrossStorageService;
-import org.meveo.security.MeveoUser;
 import org.meveo.service.admin.impl.MeveoModuleService;
 import org.meveo.service.crm.impl.CustomFieldInstanceService;
 import org.meveo.service.crm.impl.CustomFieldTemplateService;
-import org.meveo.service.crm.impl.JSONSchemaGenerator;
-import org.meveo.service.crm.impl.JSONSchemaIntoJavaClassParser;
 import org.meveo.service.custom.CustomEntityTemplateService;
 import org.meveo.service.custom.EntityCustomActionService;
 import org.meveo.service.git.GitClient;
@@ -85,13 +76,13 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private static final Logger log = LoggerFactory.getLogger(GenerateJavaEnterpriseApplication.class);
 
 	private static final String MASTER_BRANCH = "master";
+	
+	private static final String LOG_SEPARATOR = "***********************************************************";
 
 	private static final String MEVEO_BRANCH = "meveo";
 
 	private static final String MV_TEMPLATE_REPO = "https://github.com/masumcse1/mv-template.git";
-
-	private static final String LOG_SEPARATOR = "***********************************************************";
-
+	
 	private static final String CUSTOM_TEMPLATE = CustomEntityTemplate.class.getName();
 
 	private static final String CUSTOM_ENDPOINT_TEMPLATE = Endpoint.class.getName();
@@ -101,6 +92,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private static final String CUSTOMENDPOINTRESOURCE = "CustomEndpointResource.java";
 
 	private static final String CDIBEANFILE = "beans.xml";
+	
+	private ParamBeanFactory paramBeanFactory = getCDIBean(ParamBeanFactory.class);
+
+	private CrossStorageApi crossStorageApi = getCDIBean(CrossStorageApi.class);
 
 	private CrossStorageService crossStorageService = getCDIBean(CrossStorageService.class);
 
@@ -119,10 +114,6 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private MeveoModuleService meveoModuleService = getCDIBean(MeveoModuleService.class);
 
 	private RepositoryService repositoryService = getCDIBean(RepositoryService.class);
-
-	private ParamBeanFactory paramBeanFactory = getCDIBean(ParamBeanFactory.class);
-
-	private CrossStorageApi crossStorageApi = getCDIBean(CrossStorageApi.class);
 	
 	private ScriptInstanceService scriptInstanceService = getCDIBean(ScriptInstanceService.class);
 
@@ -181,16 +172,15 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		} else {
 			gitClient.pull(enterpriseappTemplateRepo, "", "");
 		}
-		File webappTemplateDirectory = GitHelper.getRepositoryDir(user, JAVAENTERPRISE_APP_TEMPLATE);
-		Path enterpriseappTemplatePath = webappTemplateDirectory.toPath();
+		File enterpriseappTemplateDirectory = GitHelper.getRepositoryDir(user, JAVAENTERPRISE_APP_TEMPLATE);
+		Path enterpriseappTemplatePath = enterpriseappTemplateDirectory.toPath();
 		log.debug("webappTemplate path: {}", enterpriseappTemplatePath.toString());
 
 		/// Generated module
-		GitRepository moduleWebAppRepo = gitRepositoryService.findByCode(moduleCode);
-		gitClient.checkout(moduleWebAppRepo, MEVEO_BRANCH, true);
-		String moduleWebAppBranch = gitClient.currentBranch(moduleWebAppRepo);
-		File moduleWebAppDirectory = GitHelper.getRepositoryDir(user, moduleCode);
-		Path moduleWebAppPath = moduleWebAppDirectory.toPath();
+		GitRepository moduleEnterpriseAppRepo = gitRepositoryService.findByCode(moduleCode);
+		gitClient.checkout(moduleEnterpriseAppRepo, MEVEO_BRANCH, true);
+		File moduleEnterpriseAppDirectory = GitHelper.getRepositoryDir(user, moduleCode);
+		Path moduleWebAppPath = moduleEnterpriseAppDirectory.toPath();
 
 		List<File> filesToCommit = new ArrayList<>();
 
@@ -199,7 +189,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 		try {
 
-			File restConfigfile = new File(moduleWebAppDirectory, pathJavaRestConfigurationFile);
+			File restConfigfile = new File(moduleEnterpriseAppDirectory, pathJavaRestConfigurationFile);
 			String restConfigurationFileContent = generateRestConfiguration(capitalize(moduleCode));
 			FileUtils.write(restConfigfile, restConfigurationFileContent, StandardCharsets.UTF_8);
 			filesToCommit.add(restConfigfile);
@@ -207,22 +197,20 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			throw new BusinessException("Failed creating file." + e.getMessage());
 		}
 		
-		List<String> endpointlist = moduleItems.stream()
+		List<String> endpointCodes = moduleItems.stream()
 				.filter(item -> CUSTOM_ENDPOINT_TEMPLATE.equals(item.getItemClass()))
 				.map(entity -> entity.getItemCode()).collect(Collectors.toList());
-
-		List<Endpoint> enpointlists = endpointService.findByServiceCode(endpointlist.get(0));
-
+	
 		 String endPointEntityClass=null; 
 		 String endPointDtoClass=null; 
 		 
-		for (String endpointstr : endpointlist) {
-			Endpoint endpoint = endpointService.findByCode(endpointstr);
+		for (String endpointCode : endpointCodes) {
+			Endpoint endpoint = endpointService.findByCode(endpointCode);
 			ScriptInstance scriptInstance = scriptInstanceService.findByCode(endpoint.getService().getCode());
 			List<FunctionIO> inputList = scriptInstance.getInputs();
-			 for(FunctionIO ss:inputList) {
-					if( isImplementedByCustomEntity(ss.getType())) {
-						 endPointEntityClass =ss.getType();
+			 for(FunctionIO input:inputList) {
+					if( isImplementedByCustomEntity(input.getType())) {
+						 endPointEntityClass =input.getType();
 					}
 			 }
 			
@@ -231,8 +219,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				String pathJavaDtoFile = "facets/java/org/meveo/" + moduleCode + "/dto/" + endPointDtoClass + ".java";
 
 				try {
-					File dtofile = new File(moduleWebAppDirectory, pathJavaDtoFile);
-					String dtocontent = generateDto(endPointEntityClass,endPointDtoClass);
+					File dtofile = new File(moduleEnterpriseAppDirectory, pathJavaDtoFile);
+					String dtocontent = generateDto(endPointEntityClass,endPointDtoClass,moduleCode);
 					FileUtils.write(dtofile, dtocontent, StandardCharsets.UTF_8);
 					filesToCommit.add(dtofile);
 				} catch (IOException e) {
@@ -240,11 +228,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				}
 			 }
 	
-		String pathEndpointFile = "facets/java/org/meveo/" + moduleCode + "/resource/"
-					+ endpoint.getCode() + ".java";
+		String pathEndpointFile = "facets/java/org/meveo/" + moduleCode + "/resource/"	+ endpoint.getCode() + ".java";
 		try {
-			File endPointFile = new File(moduleWebAppDirectory, pathEndpointFile);
-			String endPointContent = generateEndPoint(endpoint, endPointEntityClass,endPointDtoClass);
+			File endPointFile = new File(moduleEnterpriseAppDirectory, pathEndpointFile);
+			String endPointContent = generateEndPoint(endpoint, endPointEntityClass,endPointDtoClass,moduleCode);
 			FileUtils.write(endPointFile, endPointContent, StandardCharsets.UTF_8);
 			filesToCommit.add(endPointFile);
 		} catch (IOException e) {
@@ -255,7 +242,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		filesToCommit.addAll(templatefiles);
 
 		if (!filesToCommit.isEmpty()) {
-			gitClient.commitFiles(moduleWebAppRepo, filesToCommit, "DTO & Endpoint generation.");
+			gitClient.commitFiles(moduleEnterpriseAppRepo, filesToCommit, "DTO & Endpoint generation.");
 		}
 
 			}
@@ -264,6 +251,9 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		log.debug("------ GenerateJavaEnterpriseApplication.execute()--------------");
 	}
 
+	/*
+	 * Generate Rest Configuration file 
+	 */
 	String generateRestConfiguration(String moduleCode) {
 		CompilationUnit compilationUnit = new CompilationUnit();
 		compilationUnit.setPackageDeclaration("org.meveo.mymodule.rest");
@@ -281,8 +271,12 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	}
 
-	String generateDto(String endPointEntityClass,String endPointDtoClass) {
+	/*
+	 * Generate EndPoint related DTO file 
+	 */
+	String generateDto(String endPointEntityClass,String endPointDtoClass,String moduleCode) {
 		CompilationUnit compilationUnit = new CompilationUnit();
+		//TODO--mymodule dynamic
 		compilationUnit.setPackageDeclaration("org.meveo.mymodule.dto");
 		compilationUnit.getImports()
 				.add(new ImportDeclaration(new Name("org.meveo.model.customEntities." + endPointEntityClass), false, false));
@@ -329,12 +323,14 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	}
 
-	  public String generateEndPoint(Endpoint endPoint,String endPointEntityClass,String endPointDtoClass) {
+	/*
+	 * Generate EndPoint 
+	 */
+	  public String generateEndPoint(Endpoint endPoint,String endPointEntityClass,String endPointDtoClass,String moduleCode) {
 		  
-		  String serviceCode         = getServiceCode(endPoint.getService().getCode());
-		  String httpMethod          = endPoint.getMethod().getLabel();
 		  String endPointCode        = endPoint.getCode();
-		  String endpointServiceCode = endPoint.getService().getCode();
+		  String httpMethod          = endPoint.getMethod().getLabel();
+		  String serviceCode         = getServiceCode(endPoint.getService().getCode());
 		  
 			CompilationUnit cu = new CompilationUnit();
 			cu.setPackageDeclaration("org.meveo.mymodule.resource");
@@ -351,7 +347,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			//TODO--mymodule dynamaic
 			if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT"))
 			cu.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto." +endPointDtoClass ), false, false));
-			cu.getImports().add(new ImportDeclaration(new Name(endpointServiceCode), false, false));
+			cu.getImports().add(new ImportDeclaration(new Name(endPoint.getService().getCode()), false, false));
 			
 			String injectedFieldName=getNonCapitalizeNameWithPrefix(serviceCode);
 			ClassOrInterfaceDeclaration clazz = generateRestClass(cu,endPointCode,httpMethod,endPoint.getBasePath(),serviceCode,injectedFieldName);
@@ -391,7 +387,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 					|| httpMethod.equalsIgnoreCase("PUT")) {
 				MethodCallExpr getType_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
 				getType_methodCall.addArgument(new StringLiteralExpr(getNonCapitalizeName(endPoint.getPath())));
-				getType_methodCall.addArgument(getNonCapitalizeName(endPoint.getPath())); //making errror//endPoint.getPath()
+				getType_methodCall.addArgument(getNonCapitalizeName(endPoint.getPath())); 
 
 				beforeTryblock.addStatement(getType_methodCall);
 			}
@@ -442,7 +438,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			restMethodParameter.addSingleMemberAnnotation("PathParam", new StringLiteralExpr(getNonCapitalizeName(path)));
 			restMethod.addParameter(restMethodParameter);
 		}
-
+		//TODO -hardcode"contentType" : "application/json"
 		restMethod.addSingleMemberAnnotation("Produces", "MediaType.APPLICATION_JSON");
 		restMethod.addSingleMemberAnnotation("Consumes", "MediaType.APPLICATION_JSON");
 		return restMethod;
@@ -476,6 +472,11 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		return new ReturnStmt(new NameExpr("Response.status(Response.Status.OK).entity(result).build()"));
 	}
 
+	/**
+	 * 
+	 * @param --org.meveo.script.CreateMyProduct
+	 * @return--CreateMyProduct
+	 */
 	private String getServiceCode(String serviceCode) {
 		return serviceCode.substring(serviceCode.lastIndexOf(".") + 1);
 	}
@@ -503,6 +504,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		return new ExpressionStmt(assignExpr);
 	}
 
+	/*
+	 * input  : CreateMyProduct
+	 * return : _createMyProduct
+	 */
 	private String getNonCapitalizeNameWithPrefix(String className) {
 		className = className.replaceAll("[^a-zA-Z0-9]", " ");  
 		String prefix="_";
@@ -513,6 +518,10 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	}
 	
+	/*
+	 * input  : CreateMyProduct
+	 * return : createMyProduct
+	 */
 	private String getNonCapitalizeName(String className) {
 		className = className.replaceAll("[^a-zA-Z0-9]", " ");  
 		if (className == null || className.length() == 0)
@@ -523,7 +532,11 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	}
 	
 	
-	public static String capitalize(String str) {
+	/*
+	 * input  : createMyProduct
+	 * return : CreateMyProduct
+	 */
+	public  String capitalize(String str) {
 		if (str == null || str.isEmpty()) {
 			return str;
 		}
@@ -531,6 +544,9 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		return str.substring(0, 1).toUpperCase() + str.substring(1);
 	}
 	
+	/*
+	 * check entity class implemented by "CustomEntity" interface
+	 */
 	boolean isImplementedByCustomEntity(String className) {
 		String implementedIninterface=new String("CustomEntity");  
 		boolean isImplemented=false;
@@ -553,6 +569,9 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		return isImplemented;
 	}
 	
+	/*
+	 * copy files (CustomEndpointResource.java, beans.xml) into project directory 
+	 */
 	private List<File> templateFileCopy(Path webappTemplatePath, Path moduleWebAppPath) throws BusinessException {
 		List<File> filesToCommit = new ArrayList<>();
 
