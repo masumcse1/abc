@@ -173,14 +173,14 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			gitClient.pull(enterpriseappTemplateRepo, "", "");
 		}
 		File enterpriseappTemplateDirectory = GitHelper.getRepositoryDir(user, JAVAENTERPRISE_APP_TEMPLATE);
-		Path enterpriseappTemplatePath = enterpriseappTemplateDirectory.toPath();
-		log.debug("webappTemplate path: {}", enterpriseappTemplatePath.toString());
+		Path enterpriseAppTemplatePath = enterpriseappTemplateDirectory.toPath();
+		log.debug("webappTemplate path: {}", enterpriseAppTemplatePath.toString());
 
-		/// Generated module
+		/// Generate module
 		GitRepository moduleEnterpriseAppRepo = gitRepositoryService.findByCode(moduleCode);
 		gitClient.checkout(moduleEnterpriseAppRepo, MEVEO_BRANCH, true);
 		File moduleEnterpriseAppDirectory = GitHelper.getRepositoryDir(user, moduleCode);
-		Path moduleWebAppPath = moduleEnterpriseAppDirectory.toPath();
+		Path moduleEnterpriseAppPath = moduleEnterpriseAppDirectory.toPath();
 
 		List<File> filesToCommit = new ArrayList<>();
 
@@ -238,7 +238,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			throw new BusinessException("Failed creating file." + e.getMessage());
 		}
 
-		List<File> templatefiles = templateFileCopy(enterpriseappTemplatePath, moduleWebAppPath);
+		List<File> templatefiles = templateFileCopy(enterpriseAppTemplatePath, moduleEnterpriseAppPath);
 		filesToCommit.addAll(templatefiles);
 
 		if (!filesToCommit.isEmpty()) {
