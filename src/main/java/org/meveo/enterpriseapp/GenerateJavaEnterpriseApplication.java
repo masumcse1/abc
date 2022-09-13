@@ -328,78 +328,78 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	 */
 	  public String generateEndPoint(Endpoint endPoint,String endPointEntityClass,String endPointDtoClass,String moduleCode) {
 		  
-		  String endPointCode        = endPoint.getCode();
-		  String httpMethod          = endPoint.getMethod().getLabel();
-		  String serviceCode         = getServiceCode(endPoint.getService().getCode());
+	    String endPointCode        = endPoint.getCode();
+	    String httpMethod          = endPoint.getMethod().getLabel();
+	    String serviceCode         = getServiceCode(endPoint.getService().getCode());
 		  
-			CompilationUnit cu = new CompilationUnit();
-			cu.setPackageDeclaration("org.meveo.mymodule.resource");
-			//TODO--mymodule dynamic
-			cu.getImports().add(new ImportDeclaration(new Name("java.io"), false, true));
-			cu.getImports().add(new ImportDeclaration(new Name("java.util"), false, true));
-			cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs"), false, true));
-			cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core"), false, true));
-			cu.getImports().add(new ImportDeclaration(new Name("javax.enterprise.context.RequestScoped"), false, false));
-			cu.getImports().add(new ImportDeclaration(new Name("javax.inject.Inject"), false, false));
-			cu.getImports()
-					.add(new ImportDeclaration(new Name("org.meveo.admin.exception.BusinessException"), false, false));
-			cu.getImports().add(new ImportDeclaration(new Name("org.meveo.base.CustomEndpointResource"), false, false));
-			//TODO--mymodule dynamaic
-			if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT"))
-			cu.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto." +endPointDtoClass ), false, false));
-			cu.getImports().add(new ImportDeclaration(new Name(endPoint.getService().getCode()), false, false));
-			
-			String injectedFieldName=getNonCapitalizeNameWithPrefix(serviceCode);
-			ClassOrInterfaceDeclaration clazz = generateRestClass(cu,endPointCode,httpMethod,endPoint.getBasePath(),serviceCode,injectedFieldName);
-			MethodDeclaration restMethod = generateRestMethod(clazz,httpMethod,endPoint.getPath(),endPointDtoClass);
-
-			BlockStmt beforeTryblock = new BlockStmt();
-
-			VariableDeclarator var_result = new VariableDeclarator();
-			var_result.setName("result");
-			var_result.setType("String");
-			var_result.setInitializer(new NullLiteralExpr());
-
-			NodeList<VariableDeclarator> var_result_declarator = new NodeList<>();
-			var_result_declarator.add(var_result);
-			beforeTryblock.addStatement(
-					new ExpressionStmt().setExpression(new VariableDeclarationExpr().setVariables(var_result_declarator)));
-
-			beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("parameterMap = new HashMap<String, Object>()")));
-
-			if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
-				MethodCallExpr getEntity_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
-				getEntity_methodCall.addArgument(new StringLiteralExpr(getNonCapitalizeName(endPointEntityClass)));
-				getEntity_methodCall
-						.addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "get" + endPointEntityClass));
-
-				beforeTryblock.addStatement(getEntity_methodCall);
-
-				MethodCallExpr getType_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
-				getType_methodCall.addArgument(new StringLiteralExpr("type"));
-				getType_methodCall.addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "getType"));
-
-				beforeTryblock.addStatement(getType_methodCall);
-				
-			}
-
-			if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")
-					|| httpMethod.equalsIgnoreCase("PUT")) {
-				MethodCallExpr getType_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
-				getType_methodCall.addArgument(new StringLiteralExpr(getNonCapitalizeName(endPoint.getPath())));
-				getType_methodCall.addArgument(getNonCapitalizeName(endPoint.getPath())); 
-
-				beforeTryblock.addStatement(getType_methodCall);
-			}
+		CompilationUnit cu = new CompilationUnit();
+		cu.setPackageDeclaration("org.meveo.mymodule.resource");
+		//TODO--mymodule dynamic
+		cu.getImports().add(new ImportDeclaration(new Name("java.io"), false, true));
+		cu.getImports().add(new ImportDeclaration(new Name("java.util"), false, true));
+		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs"), false, true));
+		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core"), false, true));
+		cu.getImports().add(new ImportDeclaration(new Name("javax.enterprise.context.RequestScoped"), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name("javax.inject.Inject"), false, false));
+		cu.getImports()
+				.add(new ImportDeclaration(new Name("org.meveo.admin.exception.BusinessException"), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.base.CustomEndpointResource"), false, false));
+		//TODO--mymodule dynamaic
+		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT"))
+		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto." +endPointDtoClass ), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name(endPoint.getService().getCode()), false, false));
 		
-			beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("setRequestResponse()")));
-			Statement trystatement = generateTryBlock(var_result,httpMethod, injectedFieldName,endPointEntityClass,endPointDtoClass);
+		String injectedFieldName=getNonCapitalizeNameWithPrefix(serviceCode);
+		ClassOrInterfaceDeclaration clazz = generateRestClass(cu,endPointCode,httpMethod,endPoint.getBasePath(),serviceCode,injectedFieldName);
+		MethodDeclaration restMethod = generateRestMethod(clazz,httpMethod,endPoint.getPath(),endPointDtoClass);
 
-			beforeTryblock.addStatement(trystatement);
-			restMethod.setBody(beforeTryblock);
+		BlockStmt beforeTryblock = new BlockStmt();
 
-			restMethod.getBody().get().getStatements().add(getReturnType());
-			return cu.toString();
+		VariableDeclarator var_result = new VariableDeclarator();
+		var_result.setName("result");
+		var_result.setType("String");
+		var_result.setInitializer(new NullLiteralExpr());
+
+		NodeList<VariableDeclarator> var_result_declarator = new NodeList<>();
+		var_result_declarator.add(var_result);
+		beforeTryblock.addStatement(
+				new ExpressionStmt().setExpression(new VariableDeclarationExpr().setVariables(var_result_declarator)));
+
+		beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("parameterMap = new HashMap<String, Object>()")));
+
+		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
+			MethodCallExpr getEntity_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
+			getEntity_methodCall.addArgument(new StringLiteralExpr(getNonCapitalizeName(endPointEntityClass)));
+			getEntity_methodCall
+					.addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "get" + endPointEntityClass));
+
+			beforeTryblock.addStatement(getEntity_methodCall);
+
+			MethodCallExpr getType_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
+			getType_methodCall.addArgument(new StringLiteralExpr("type"));
+			getType_methodCall.addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "getType"));
+
+			beforeTryblock.addStatement(getType_methodCall);
+			
+		}
+
+		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")
+				|| httpMethod.equalsIgnoreCase("PUT")) {
+			MethodCallExpr getType_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
+			getType_methodCall.addArgument(new StringLiteralExpr(getNonCapitalizeName(endPoint.getPath())));
+			getType_methodCall.addArgument(getNonCapitalizeName(endPoint.getPath())); 
+
+			beforeTryblock.addStatement(getType_methodCall);
+		}
+	
+		beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("setRequestResponse()")));
+		Statement trystatement = generateTryBlock(var_result,httpMethod, injectedFieldName,endPointEntityClass,endPointDtoClass);
+
+		beforeTryblock.addStatement(trystatement);
+		restMethod.setBody(beforeTryblock);
+
+		restMethod.getBody().get().getStatements().add(getReturnType());
+		return cu.toString();
 		}
 	
 
