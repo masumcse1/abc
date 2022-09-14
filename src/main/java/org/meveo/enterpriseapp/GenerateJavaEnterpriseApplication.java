@@ -51,17 +51,20 @@ import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Modifier;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
@@ -256,7 +259,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	 */
 	String generateRestConfiguration(String moduleCode) {
 		CompilationUnit compilationUnit = new CompilationUnit();
-		compilationUnit.setPackageDeclaration("org.meveo.mymodule.rest");
+		StringBuilder restconfigurationpackage=new StringBuilder("org.meveo.").append(moduleCode).append(".rest");
+		compilationUnit.setPackageDeclaration(restconfigurationpackage.toString());
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.ApplicationPath"), false, false));
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core.Application"), false, false));
 		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(moduleCode + "RestConfig")
@@ -274,50 +278,56 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	/*
 	 * Generate EndPoint related DTO file 
 	 */
-	String generateDto(String endPointEntityClass,String endPointDtoClass,String moduleCode) {
+	String generateDto(String endPointEntityClass, String endPointDtoClass, String moduleCode) {
 		CompilationUnit compilationUnit = new CompilationUnit();
-		//TODO--mymodule dynamic
-		compilationUnit.setPackageDeclaration("org.meveo.mymodule.dto");
-		compilationUnit.getImports()
-				.add(new ImportDeclaration(new Name("org.meveo.model.customEntities." + endPointEntityClass), false, false));
-		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(endPointDtoClass)
-				.setPublic(true);
+	
+		StringBuilder dtoPackage=new StringBuilder("org.meveo.").append(moduleCode).append(".dto");
+		compilationUnit.setPackageDeclaration(dtoPackage.toString());
+		compilationUnit.getImports().add(
+				new ImportDeclaration(new Name("org.meveo.model.customEntities." + endPointEntityClass), false, false));
+		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(endPointDtoClass).setPublic(true);
 
-		FieldDeclaration field1 = new FieldDeclaration();
-		VariableDeclarator variable1 = new VariableDeclarator();
-		variable1.setName("type");
-		variable1.setType("String");
+		FieldDeclaration typefield = new FieldDeclaration();
+		VariableDeclarator typeVar = new VariableDeclarator();
+		typeVar.setName("type");
+		typeVar.setType("String");
 
-		field1.setModifiers(Modifier.Keyword.PRIVATE);
-		field1.addVariable(variable1);
-		classDeclaration.addMember(field1);
+		typefield.setModifiers(Modifier.Keyword.PRIVATE);
+		typefield.addVariable(typeVar);
+		classDeclaration.addMember(typefield);
 
-		FieldDeclaration field2 = new FieldDeclaration();
-		VariableDeclarator variable2 = new VariableDeclarator();
-		variable2.setName(endPointEntityClass.toLowerCase());
-		variable2.setType(endPointEntityClass);
+		FieldDeclaration entityClassField = new FieldDeclaration();
+		VariableDeclarator entityClassVar = new VariableDeclarator();
+		entityClassVar.setName(endPointEntityClass.toLowerCase());
+		entityClassVar.setType(endPointEntityClass);
 
-		field2.setModifiers(Modifier.Keyword.PRIVATE);
-		field2.addVariable(variable2);
-		classDeclaration.addMember(field2);
-
-		field1.createGetter();
-		field1.createSetter();
-		field2.createGetter();
-		field2.createSetter();
+		entityClassField.setModifiers(Modifier.Keyword.PRIVATE);
+		entityClassField.addVariable(entityClassVar);
+		classDeclaration.addMember(entityClassField);
 
 		classDeclaration.addConstructor(Modifier.Keyword.PUBLIC);
+	
+		ConstructorDeclaration constructor = classDeclaration.addConstructor(Modifier.Keyword.PUBLIC);
+		Parameter typeconsparam = new Parameter();
+		typeconsparam.setType(endPointEntityClass);
+		typeconsparam.setName(endPointEntityClass.toLowerCase());
+		constructor.addParameter(typeconsparam);
+		Parameter entityconsparam = new Parameter();
+		entityconsparam.setType(typeVar.getType());
+		entityconsparam.setName(typeVar.getName());
+		constructor.addParameter(entityconsparam);
 
-		VariableDeclarator variableDeclarator1 = new VariableDeclarator();
-		variableDeclarator1.setType(endPointEntityClass);
-
-		VariableDeclarator variableDeclarator2 = new VariableDeclarator();
-		variableDeclarator2.setType("String");
-        //TODO --remove hardcode
-		classDeclaration.addConstructor(Modifier.Keyword.PUBLIC)
-				.addParameter(new Parameter(variableDeclarator1.getType(), "product"))
-				.addParameter(new Parameter(variableDeclarator2.getType(), "type"))
-				.setBody(JavaParser.parseBlock("{\n this.product = product; \n  this.type = type; \n}"));
+		BlockStmt constructorbody = new BlockStmt();
+		AssignExpr typefiledexpression = new AssignExpr(new FieldAccessExpr(new ThisExpr(), typeVar.getNameAsString()), new NameExpr(typeVar.getName()),AssignExpr.Operator.ASSIGN);
+		AssignExpr entityClassFieldexpression =new AssignExpr(new FieldAccessExpr(new ThisExpr(), endPointEntityClass.toLowerCase()), new NameExpr(endPointEntityClass.toLowerCase()),AssignExpr.Operator.ASSIGN);
+		constructorbody.addStatement(typefiledexpression);
+    	constructorbody.addStatement(entityClassFieldexpression);
+		constructor.setBody(constructorbody);
+		
+		typefield.createGetter();
+		typefield.createSetter();
+		entityClassField.createGetter();
+		entityClassField.createSetter();
 
 		return compilationUnit.toString();
 
@@ -333,25 +343,25 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	    String serviceCode         = getServiceCode(endPoint.getService().getCode());
 		  
 		CompilationUnit cu = new CompilationUnit();
-		cu.setPackageDeclaration("org.meveo.mymodule.resource");
-		//TODO--mymodule dynamic
+		StringBuilder resourcepackage=new StringBuilder("org.meveo.").append(moduleCode).append(".resource");
+		cu.setPackageDeclaration(resourcepackage.toString());
 		cu.getImports().add(new ImportDeclaration(new Name("java.io"), false, true));
 		cu.getImports().add(new ImportDeclaration(new Name("java.util"), false, true));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs"), false, true));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core"), false, true));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.enterprise.context.RequestScoped"), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.inject.Inject"), false, false));
-		cu.getImports()
-				.add(new ImportDeclaration(new Name("org.meveo.admin.exception.BusinessException"), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.admin.exception.BusinessException"), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.base.CustomEndpointResource"), false, false));
-		//TODO--mymodule dynamaic
-		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT"))
-		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.mymodule.dto." +endPointDtoClass ), false, false));
+		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
+			StringBuilder endpointDtoclasspackage=new StringBuilder("org.meveo.").append(moduleCode).append("."+endPointDtoClass);
+			cu.getImports().add(new ImportDeclaration(new Name(endpointDtoclasspackage.toString()), false, false));
+		}
 		cu.getImports().add(new ImportDeclaration(new Name(endPoint.getService().getCode()), false, false));
 		
 		String injectedFieldName=getNonCapitalizeNameWithPrefix(serviceCode);
 		ClassOrInterfaceDeclaration clazz = generateRestClass(cu,endPointCode,httpMethod,endPoint.getBasePath(),serviceCode,injectedFieldName);
-		MethodDeclaration restMethod = generateRestMethod(clazz,httpMethod,endPoint.getPath(),endPointDtoClass);
+		MethodDeclaration restMethod = generateRestMethod(clazz,httpMethod,endPoint.getPath(),endPointDtoClass,endPoint.getContentType());
 
 		BlockStmt beforeTryblock = new BlockStmt();
 
@@ -393,7 +403,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		}
 	
 		beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("setRequestResponse()")));
-		Statement trystatement = generateTryBlock(var_result,httpMethod, injectedFieldName,endPointEntityClass,endPointDtoClass);
+		Statement trystatement = generateTryBlock(var_result,httpMethod, endPoint.getPath(),injectedFieldName,endPointEntityClass,endPointDtoClass);
 
 		beforeTryblock.addStatement(trystatement);
 		restMethod.setBody(beforeTryblock);
@@ -416,7 +426,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		return clazz;
 	}
 
-	private MethodDeclaration generateRestMethod(ClassOrInterfaceDeclaration clazz,String httpMethod,String path,String endPointDtoClass) {
+	private MethodDeclaration generateRestMethod(ClassOrInterfaceDeclaration clazz,String httpMethod,String path,String endPointDtoClass,String contentType) {
 		
 		MethodDeclaration restMethod = clazz.addMethod("execute",Modifier.Keyword.PUBLIC);
 		restMethod.setType("Response");
@@ -438,17 +448,19 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			restMethodParameter.addSingleMemberAnnotation("PathParam", new StringLiteralExpr(getNonCapitalizeName(path)));
 			restMethod.addParameter(restMethodParameter);
 		}
-		//TODO -hardcode"contentType" : "application/json"
-		restMethod.addSingleMemberAnnotation("Produces", "MediaType.APPLICATION_JSON");
-		restMethod.addSingleMemberAnnotation("Consumes", "MediaType.APPLICATION_JSON");
+	
+		if(contentType.equalsIgnoreCase("application/json")) {
+			restMethod.addSingleMemberAnnotation("Produces", "MediaType.APPLICATION_JSON");
+			restMethod.addSingleMemberAnnotation("Consumes", "MediaType.APPLICATION_JSON");
+		}
+		
 		return restMethod;
 
 	}
 
-	private Statement generateTryBlock(VariableDeclarator assignmentVariable,String httpMethod,String injectedFieldName,String endPointEntityClass,String endPointDtoClass) {
+	private Statement generateTryBlock(VariableDeclarator assignmentVariable,String httpMethod,String path,String injectedFieldName,String endPointEntityClass,String endPointDtoClass) {
 		BlockStmt tryblock = new BlockStmt();
 
-		
 		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT"))
 			tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "set" + endPointEntityClass).addArgument(
 					new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "get" + endPointEntityClass)));
@@ -457,7 +469,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("PUT")
 				|| httpMethod.equalsIgnoreCase("DELETE"))
 			tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "setUuid").addArgument("uuid"));
-//TODO --setUuid dynamic
+     //TODO --setUuid dynamic
 		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "init").addArgument("parameterMap"));
 		tryblock.addStatement(
 				new MethodCallExpr(new NameExpr(injectedFieldName), "execute").addArgument("parameterMap"));
