@@ -519,12 +519,12 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	 * return : _createMyProduct
 	 */
 	private String getNonCapitalizeNameWithPrefix(String className) {
-		className = className.replaceAll("[^a-zA-Z0-9]", " ");  
+		className = className.replaceAll("[^a-zA-Z0-9]", " ").trim();
 		String prefix="_";
 		if (className == null || className.length() == 0)
 			return className;
 		String objectReferenceName = prefix+className.substring(0, 1).toLowerCase() + className.substring(1);
-		return objectReferenceName;
+		return objectReferenceName.trim();
 
 	}
 	
@@ -533,7 +533,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	 * return : createMyProduct
 	 */
 	private String getNonCapitalizeName(String className) {
-		className = className.replaceAll("[^a-zA-Z0-9]", " ");  
+		className = className.replaceAll("[^a-zA-Z0-9]", " ").trim();  
 		if (className == null || className.length() == 0)
 			return className;
 		String objectReferenceName = className.substring(0, 1).toLowerCase() + className.substring(1);
@@ -547,12 +547,12 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	 * return : CreateMyProduct
 	 */
 	public  String capitalize(String str) {
-		str = str.replaceAll("[^a-zA-Z0-9]", " ");  
+		str = str.replaceAll("[^a-zA-Z0-9]", " ").trim();  
 		if (str == null || str.isEmpty()) {
 			return str;
 		}
 
-		return str.substring(0, 1).toUpperCase() + str.substring(1);
+		return str.substring(0, 1).toUpperCase() + str.substring(1).trim();
 	}
 	
 	/*
