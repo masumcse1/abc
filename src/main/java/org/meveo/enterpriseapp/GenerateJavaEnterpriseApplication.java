@@ -92,9 +92,15 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 	private static final String JAVAENTERPRISE_APP_TEMPLATE = JavaEnterpriseApp.class.getSimpleName();
 
-	private static final String CUSTOMENDPOINTRESOURCE = "CustomEndpointResource.java";
-
 	private static final String CDIBEANFILE = "beans.xml";
+	
+	private static final String CUSTOMENDPOINTRESOURCEFILE = "CustomEndpointResource.java";
+	
+	private static final String SET_REQUEST_RESTPONSE_METHOD = "setRequestResponse";
+	
+	private static final String CUSTOME_ENDPOINT_BASE_RESOURCE = "CustomEndpointResource";
+	
+	private static final String CUSTOME_ENDPOINT_BASE_RESOURCE_PACKAGE = "org.meveo.base.CustomEndpointResource";
 	
 	private ParamBeanFactory paramBeanFactory = getCDIBean(ParamBeanFactory.class);
 
@@ -263,8 +269,8 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		compilationUnit.setPackageDeclaration(restconfigurationpackage.toString());
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.ApplicationPath"), false, false));
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core.Application"), false, false));
-		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(capitalize(moduleCode) + "RestConfig")
-				.setPublic(true);
+		
+		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(capitalize(moduleCode) + "RestConfig").setPublic(true);
 		classDeclaration.addSingleMemberAnnotation("ApplicationPath", new StringLiteralExpr("api"));
 
 		NodeList<ClassOrInterfaceType> extendsList = new NodeList<>();
@@ -283,8 +289,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	
 		StringBuilder dtoPackage=new StringBuilder("org.meveo.").append(moduleCode).append(".dto");
 		compilationUnit.setPackageDeclaration(dtoPackage.toString());
-		compilationUnit.getImports().add(
-				new ImportDeclaration(new Name("org.meveo.model.customEntities." + endPointEntityClass), false, false));
+		compilationUnit.getImports().add(new ImportDeclaration(new Name("org.meveo.model.customEntities." + endPointEntityClass), false, false));
 		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(endPointDtoClass).setPublic(true);
 
 		FieldDeclaration typefield = new FieldDeclaration();
@@ -352,7 +357,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		cu.getImports().add(new ImportDeclaration(new Name("javax.enterprise.context.RequestScoped"), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name("javax.inject.Inject"), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.admin.exception.BusinessException"), false, false));
-		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.base.CustomEndpointResource"), false, false));
+		cu.getImports().add(new ImportDeclaration(new Name(CUSTOME_ENDPOINT_BASE_RESOURCE_PACKAGE), false, false));
 		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
 			StringBuilder endpointDtoclasspackage=new StringBuilder("org.meveo.").append(moduleCode).append(".dto."+endPointDtoClass);
 			cu.getImports().add(new ImportDeclaration(new Name(endpointDtoclasspackage.toString()), false, false));
@@ -372,16 +377,14 @@ public class GenerateJavaEnterpriseApplication extends Script {
 
 		NodeList<VariableDeclarator> var_result_declarator = new NodeList<>();
 		var_result_declarator.add(var_result);
-		beforeTryblock.addStatement(
-				new ExpressionStmt().setExpression(new VariableDeclarationExpr().setVariables(var_result_declarator)));
+		beforeTryblock.addStatement(new ExpressionStmt().setExpression(new VariableDeclarationExpr().setVariables(var_result_declarator)));
 
 		beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("parameterMap = new HashMap<String, Object>()")));
 
 		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
 			MethodCallExpr getEntity_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
 			getEntity_methodCall.addArgument(new StringLiteralExpr(getNonCapitalizeName(endPointEntityClass)));
-			getEntity_methodCall
-					.addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "get" + endPointEntityClass));
+			getEntity_methodCall.addArgument(new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "get" + endPointEntityClass));
 
 			beforeTryblock.addStatement(getEntity_methodCall);
 
@@ -393,8 +396,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			
 		}
 
-		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")
-				|| httpMethod.equalsIgnoreCase("PUT")) {
+		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")	|| httpMethod.equalsIgnoreCase("PUT")) {
 			MethodCallExpr getType_methodCall = new MethodCallExpr(new NameExpr("parameterMap"), "put");
 			getType_methodCall.addArgument(new StringLiteralExpr(getNonCapitalizeName(endPoint.getPath())));
 			getType_methodCall.addArgument(getNonCapitalizeName(endPoint.getPath())); 
@@ -402,7 +404,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 			beforeTryblock.addStatement(getType_methodCall);
 		}
 	
-		beforeTryblock.addStatement(new ExpressionStmt(new NameExpr("setRequestResponse()")));
+		beforeTryblock.addStatement(new ExpressionStmt(new MethodCallExpr(SET_REQUEST_RESTPONSE_METHOD)));
 		Statement trystatement = generateTryBlock(var_result,httpMethod, endPoint.getPath(),injectedFieldName,endPointEntityClass,endPointDtoClass);
 
 		beforeTryblock.addStatement(trystatement);
@@ -421,7 +423,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		injectedfield.addMarkerAnnotation("Inject");
 
 		NodeList<ClassOrInterfaceType> extendsList = new NodeList<>();
-		extendsList.add(new ClassOrInterfaceType().setName(new SimpleName("CustomEndpointResource")));
+		extendsList.add(new ClassOrInterfaceType().setName(new SimpleName(CUSTOME_ENDPOINT_BASE_RESOURCE)));
 		clazz.setExtendedTypes(extendsList);
 		return clazz;
 	}
@@ -440,8 +442,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				restMethod.addParameter(endPointDtoClass, getNonCapitalizeName(endPointDtoClass));
 		}
 
-		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")
-				|| httpMethod.equalsIgnoreCase("PUT")) {
+		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("DELETE")	|| httpMethod.equalsIgnoreCase("PUT")) {
 			Parameter restMethodParameter = new Parameter();
 			restMethodParameter.setType("String");
 			restMethodParameter.setName(getNonCapitalizeName(path));
@@ -461,20 +462,20 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	private Statement generateTryBlock(VariableDeclarator assignmentVariable,String httpMethod,String path,String injectedFieldName,String endPointEntityClass,String endPointDtoClass) {
 		BlockStmt tryblock = new BlockStmt();
 
-		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT"))
+		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
 			tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "set" + endPointEntityClass).addArgument(
 					new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "get" + endPointEntityClass)));
+		}
 
-
-		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("PUT")
-				|| httpMethod.equalsIgnoreCase("DELETE"))
+		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("PUT") || httpMethod.equalsIgnoreCase("DELETE")) {
 			tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "setUuid").addArgument("uuid"));
-     //TODO --setUuid dynamic
-		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "init").addArgument("parameterMap"));
-		tryblock.addStatement(
-				new MethodCallExpr(new NameExpr(injectedFieldName), "execute").addArgument("parameterMap"));
-		tryblock.addStatement(
-				new MethodCallExpr(new NameExpr(injectedFieldName), "finalize").addArgument("parameterMap"));
+		}
+		
+		System.out.println("-------------------path ---------------"+path);
+			
+ 		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "init").addArgument("parameterMap"));
+		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "execute").addArgument("parameterMap"));
+		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "finalize").addArgument("parameterMap"));
 		tryblock.addStatement(assignment(assignmentVariable.getNameAsString(), injectedFieldName, "getResult"));
 		Statement trystatement = addingException(tryblock);
 		return trystatement;
@@ -501,8 +502,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		String exceptionName = "e";
 		cc.setParameter(new Parameter().setName(exceptionName).setType(BusinessException.class));
 		BlockStmt cb = new BlockStmt();
-		cb.addStatement(new ExpressionStmt(
-				new NameExpr("return Response.status(Response.Status.BAD_REQUEST).entity(result).build()")));
+		cb.addStatement(new ExpressionStmt(	new NameExpr("return Response.status(Response.Status.BAD_REQUEST).entity(result).build()")));
 		// cb.addStatement(new ThrowStmt(new NameExpr(ex8uj ceptionName)));
 		cc.setBody(cb);
 		ts.setCatchClauses(new NodeList<>(cc));
@@ -595,7 +595,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 				Path sourcePath = sources.get(index);
 				Path destinationPath = destinations.get(index);
 
-				if (sourcePath.toString().contains(CUSTOMENDPOINTRESOURCE)
+				if (sourcePath.toString().contains(CUSTOMENDPOINTRESOURCEFILE)
 						|| sourcePath.toString().contains(CDIBEANFILE)) {
 					try {
 						File outputFile = new File(destinationPath.toString());
