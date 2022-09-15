@@ -193,7 +193,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		try {
 
 			File restConfigfile = new File(moduleEnterpriseAppDirectory, pathJavaRestConfigurationFile);
-			String restConfigurationFileContent = generateRestConfiguration(capitalize(moduleCode));
+			String restConfigurationFileContent = generateRestConfiguration(moduleCode);
 			FileUtils.write(restConfigfile, restConfigurationFileContent, StandardCharsets.UTF_8);
 			filesToCommit.add(restConfigfile);
 		} catch (IOException e) {
@@ -263,7 +263,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		compilationUnit.setPackageDeclaration(restconfigurationpackage.toString());
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.ApplicationPath"), false, false));
 		compilationUnit.getImports().add(new ImportDeclaration(new Name("javax.ws.rs.core.Application"), false, false));
-		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(moduleCode + "RestConfig")
+		ClassOrInterfaceDeclaration classDeclaration = compilationUnit.addClass(capitalize(moduleCode) + "RestConfig")
 				.setPublic(true);
 		classDeclaration.addSingleMemberAnnotation("ApplicationPath", new StringLiteralExpr("api"));
 
@@ -354,7 +354,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.admin.exception.BusinessException"), false, false));
 		cu.getImports().add(new ImportDeclaration(new Name("org.meveo.base.CustomEndpointResource"), false, false));
 		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
-			StringBuilder endpointDtoclasspackage=new StringBuilder("org.meveo.").append(moduleCode).append("."+endPointDtoClass);
+			StringBuilder endpointDtoclasspackage=new StringBuilder("org.meveo.").append(moduleCode).append(".dto."+endPointDtoClass);
 			cu.getImports().add(new ImportDeclaration(new Name(endpointDtoclasspackage.toString()), false, false));
 		}
 		cu.getImports().add(new ImportDeclaration(new Name(endPoint.getService().getCode()), false, false));
