@@ -463,15 +463,13 @@ public class GenerateJavaEnterpriseApplication extends Script {
 		BlockStmt tryblock = new BlockStmt();
 
 		if (httpMethod.equalsIgnoreCase("POST") || httpMethod.equalsIgnoreCase("PUT")) {
-			tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "set" + endPointEntityClass).addArgument(
-					new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "get" + endPointEntityClass)));
+			tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "set" + endPointEntityClass)
+					.addArgument (new MethodCallExpr(new NameExpr(getNonCapitalizeName(endPointDtoClass)), "get" + endPointEntityClass)));
 		}
 
 		if (httpMethod.equalsIgnoreCase("GET") || httpMethod.equalsIgnoreCase("PUT") || httpMethod.equalsIgnoreCase("DELETE")) {
-			tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "setUuid").addArgument("uuid"));
+			tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "set"+capitalize(path)).addArgument(getNonCapitalizeName(path)));
 		}
-		
-		System.out.println("-------------------path ---------------"+path);
 			
  		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "init").addArgument("parameterMap"));
 		tryblock.addStatement(new MethodCallExpr(new NameExpr(injectedFieldName), "execute").addArgument("parameterMap"));
@@ -549,6 +547,7 @@ public class GenerateJavaEnterpriseApplication extends Script {
 	 * return : CreateMyProduct
 	 */
 	public  String capitalize(String str) {
+		str = str.replaceAll("[^a-zA-Z0-9]", " ");  
 		if (str == null || str.isEmpty()) {
 			return str;
 		}
